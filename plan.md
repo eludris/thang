@@ -1,4 +1,4 @@
-# Thang-discord
+# Thang-Discord
 
 *Watch `plan.md` become an Eludris meta. :trollface:*
 
@@ -15,7 +15,7 @@ Thang -the Eludris mascot?- 's discord bot.
 - [ ] Miscellaneous:
   - [ ] Tags
   - [ ] Poll
-- Fun:
+- [ ] Fun:
   - [ ] Sus
 
 ## Tools
