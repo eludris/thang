@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  bot:
+    container_name: thang
+    env_file: .env
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile

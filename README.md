@@ -8,3 +8,10 @@ Official Eludris Discord bot for managing stuff ~~and inside jokes~~
 echo "TOKEN=<discord-token>" > .env
 docker-compose up --build
 ```
+
+### Dev (faster incremental builds for dependency changes)
+
+```bash
+# install rust
+cargo run
+```

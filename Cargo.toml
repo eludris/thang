@@ -1,0 +1,17 @@
+[package]
+name = "thang"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15"
+
+[dependencies.tokio]
+version = "1.19"
+features = ["rt-multi-thread"]
+
+[dependencies.serenity]
+version = "0.11"
+features = ["builder", "cache", "client", "framework", "gateway", "http", "model", "standard_framework", "temp_cache", "rustls_backend"]
