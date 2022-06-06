@@ -17,6 +17,7 @@ Thang -the Eludris mascot?- 's discord bot.
   - [ ] Poll
 - [ ] Fun:
   - [ ] Sus
+  - [ ] Hangman
 
 ## Tools
 
