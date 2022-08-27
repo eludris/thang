@@ -1,12 +1,15 @@
+mod events;
+mod types;
+
+use crate::events::handle_event;
 use dotenv::dotenv;
 use futures::stream::StreamExt;
-use log::info;
 use std::{env, error::Error, sync::Arc};
 use twilight_gateway::{
     cluster::{Cluster, ShardScheme},
-    Event, Intents,
+    Intents,
 };
-use twilight_http::Client as HttpClient;
+use twilight_http::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -38,38 +41,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     // The http client is seperate from the gateway, so startup a new
     // one, also use Arc such that it can be cloned to other threads.
-    let http = Arc::new(HttpClient::new(token));
+    let http = Arc::new(Client::new(token));
 
     while let Some((shard_id, event)) = events.next().await {
         tokio::spawn(handle_event(shard_id, event, Arc::clone(&http)));
-    }
-
-    Ok(())
-}
-
-async fn handle_event(
-    shard_id: u64,
-    event: Event,
-    http: Arc<HttpClient>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    match event {
-        Event::MessageCreate(msg) => {
-            if msg.content == "!ping" {
-                http.create_message(msg.channel_id)
-                    .content("Pong!")?
-                    .exec()
-                    .await?;
-            } else if msg.content == "!help" {
-                http.create_message(msg.channel_id)
-                    .content("L")?
-                    .exec()
-                    .await?;
-            }
-        }
-        Event::ShardConnected(_) => {
-            info!("Connected on shard {}", shard_id);
-        }
-        _ => {}
     }
 
     Ok(())
