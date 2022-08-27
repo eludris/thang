@@ -14,3 +14,4 @@ tokio = { version = "1.20.1", features = [ "macros", "rt-multi-thread" ] }
 twilight = "0.13.0"
 twilight-gateway = "0.13.0"
 twilight-http = "0.13.0"
+twilight-model = "0.13.0"

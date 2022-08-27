@@ -914,6 +914,7 @@ dependencies = [
  "twilight",
  "twilight-gateway",
  "twilight-http",
+ "twilight-model",
 ]
 
 [[package]]
