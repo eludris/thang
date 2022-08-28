@@ -12,7 +12,7 @@ pub async fn on_message(msg: MessageCreate, context: Arc<Context>) -> ThangResul
     };
     let content = &msg.content;
 
-    if !author.starts_with("Bridge-") {
+    if !author.starts_with("Bridge-") && msg.channel_id == context.bridge_channel_id {
         let response = context
             .eludris_http_client
             .post(&context.eludris_rest_url)
