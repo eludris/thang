@@ -45,21 +45,28 @@ async fn main() -> ThangResult<()> {
         cluster_spawn.up().await;
     });
 
+    let eludris_gateway_url =
+        env::var("ELUDRIS_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string());
+    let (eludris_ws_writer, eludris_ws_reader) =
+        connect_async(&eludris_gateway_url).await?.0.split();
+
+    let url = Url::parse(&webhook_url)?;
+    let url_segments = url.path_segments().unwrap();
+
     let context = Arc::new(Context {
-        http: Client::new(token),
-        webhook_url: webhook_url.clone(),
-        webhook_id: Url::parse(&webhook_url)?
-            .path_segments()
-            .unwrap()
-            .nth(2)
-            .unwrap()
-            .parse::<u64>()?,
-        bridge_channel_id: env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?,
-        eludris_gateway_url: env::var("ELUDRIS_GATEWAY_URL")
-            .unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string()),
+        http: Client::builder()
+            .token(token)
+            .default_allowed_mentions(AllowedMentions::default())
+            .build(),
+        bridge_webhook_url: webhook_url.clone(),
+        bridge_webhook_id: Id::new(url_segments.clone().nth(2).unwrap().parse::<u64>()?),
+        bridge_webhook_token: url_segments.clone().nth(3).unwrap().to_string(),
+        bridge_channel_id: Id::new(env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?),
         eludris_rest_url: env::var("ELUDRIS_REST_URL")
             .unwrap_or_else(|_| DEFAULT_REST_URL.to_string()),
         eludris_http_client: reqwest::Client::new(),
+        eludris_gateway_url,
+        eludris_ws_writer,
     });
 
     while let Some((shard_id, event)) = events.next().await {
