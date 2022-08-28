@@ -33,19 +33,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-compression"
-version = "0.3.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "345fd392ab01f746c717b1357165b76f0b67a60192007b234058c9045fdcf695"
-dependencies = [
- "brotli",
- "futures-core",
- "memchr",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -858,7 +845,6 @@ version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b75aa69a3f06bbcc66ede33af2af253c6f7a86b1ca0033f60c580a27074fbf92"
 dependencies = [
- "async-compression",
  "base64",
  "bytes",
  "encoding_rs",
@@ -882,7 +868,6 @@ dependencies = [
  "serde_urlencoded",
  "tokio",
  "tokio-native-tls",
- "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
