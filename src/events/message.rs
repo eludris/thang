@@ -1,6 +1,7 @@
 use crate::types::{Context, ThangResult};
 use reqwest::StatusCode;
-use std::{collections::HashMap, sync::Arc};
+use serde_json::json;
+use std::sync::Arc;
 use twilight_model::gateway::payload::incoming::MessageCreate;
 
 pub async fn on_message(msg: MessageCreate, context: Arc<Context>) -> ThangResult<()> {
@@ -13,13 +14,10 @@ pub async fn on_message(msg: MessageCreate, context: Arc<Context>) -> ThangResul
         .unwrap_or(&msg.author.name);
     let content = &msg.content;
 
-    let mut map: HashMap<&str, &str> = HashMap::new();
-    map.insert("author", author);
-    map.insert("content", content);
     let response = context
         .eludris_http_client
         .post(&context.eludris_rest_url)
-        .json(&map)
+        .json(&json!({"author": author, "content": content}))
         .send()
         .await?;
 

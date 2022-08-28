@@ -1116,6 +1116,8 @@ dependencies = [
  "futures",
  "log",
  "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
  "twilight",
  "twilight-gateway",
