@@ -5,13 +5,11 @@ use std::sync::Arc;
 use twilight_model::gateway::payload::incoming::MessageCreate;
 
 pub async fn on_message(msg: MessageCreate, context: Arc<Context>) -> ThangResult<()> {
-    let author = &msg
-        .member
-        .as_ref()
-        .unwrap()
-        .nick
-        .as_ref()
-        .unwrap_or(&msg.author.name);
+    let username = &msg.author.name;
+    let author = match msg.member.as_ref() {
+        Some(member) => member.nick.as_ref().unwrap_or(username),
+        None => username,
+    };
     let content = &msg.content;
 
     let response = context
