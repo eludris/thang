@@ -59,6 +59,7 @@ async fn main() -> ThangResult<()> {
             .unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string()),
         eludris_rest_url: env::var("ELUDRIS_REST_URL")
             .unwrap_or_else(|_| DEFAULT_REST_URL.to_string()),
+        eludris_http_client: reqwest::Client::new(),
     });
 
     while let Some((shard_id, event)) = events.next().await {
