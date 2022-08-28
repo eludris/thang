@@ -10,10 +10,25 @@ use shard::on_shard_connect;
 use std::{future::Future, sync::Arc};
 use twilight_gateway::{cluster::Events, Event};
 
-pub async fn iterate_websocket(mut events: Events, context: Arc<Context>) {
+use std::{error::Error, fmt};
+
+#[derive(Debug)]
+struct Thing;
+
+impl Error for Thing {}
+
+impl fmt::Display for Thing {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Oh no, something bad went down")
+    }
+}
+
+pub async fn iterate_websocket(mut events: Events, context: Arc<Context>) -> ThangResult<()> {
     while let Some((shard_id, event)) = events.next().await {
         tokio::spawn(handle_event(shard_id, event, context.clone()));
     }
+
+    Ok(())
 }
 
 async fn handle_event(shard_id: u64, event: Event, context: Arc<Context>) {

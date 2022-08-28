@@ -11,7 +11,7 @@ use twilight_model::id::{
     Id,
 };
 
-pub type ThangResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+pub type ThangResult<T> = Result<T, Box<dyn Error>>;
 pub type WsWriter = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, TungstenMessage>;
 pub type WsReader = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 

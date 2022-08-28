@@ -71,10 +71,16 @@ async fn main() -> ThangResult<()> {
         eludris_ws_writer,
     });
 
-    tokio::join!(
-        events::iterate_websocket(event_iterator, context.clone()),
-        eludris::iterate_websocket(eludris_ws_reader, context.clone())
-    );
+    let err = tokio::select! {
+        e = events::iterate_websocket(event_iterator, context.clone()) => {
+            log::error!("Discord failed first {:?}", e);
+            e
+        }
+        e = eludris::iterate_websocket(eludris_ws_reader, context.clone()) => {
+            log::error!("Eludris failed first {:?}", e);
+            e
+        }
+    };
 
-    Ok(())
+    err
 }
