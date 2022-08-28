@@ -1,15 +1,17 @@
+mod eludris;
 mod events;
 mod types;
 
 use dotenv::dotenv;
-use events::handle_event;
-use futures::stream::StreamExt;
+use futures::StreamExt;
 use std::{env, sync::Arc};
+use tokio_tungstenite::connect_async;
 use twilight_gateway::{
     cluster::{Cluster, ShardScheme},
     Intents,
 };
 use twilight_http::Client;
+use twilight_model::{channel::message::AllowedMentions, id::Id};
 use types::{Context, ThangResult};
 use url::Url;
 
@@ -32,7 +34,7 @@ async fn main() -> ThangResult<()> {
 
     let intents = Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT;
 
-    let (cluster, mut events) = Cluster::builder(token.clone(), intents)
+    let (cluster, event_iterator) = Cluster::builder(token.clone(), intents)
         .shard_scheme(scheme)
         .build()
         .await?;
@@ -69,9 +71,10 @@ async fn main() -> ThangResult<()> {
         eludris_ws_writer,
     });
 
-    while let Some((shard_id, event)) = events.next().await {
-        tokio::spawn(handle_event(shard_id, event, context.clone()));
-    }
+    tokio::join!(
+        events::iterate_websocket(event_iterator, context.clone()),
+        eludris::iterate_websocket(eludris_ws_reader, context.clone())
+    );
 
     Ok(())
 }
