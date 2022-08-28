@@ -12,19 +12,21 @@ pub async fn on_message(msg: MessageCreate, context: Arc<Context>) -> ThangResul
     };
     let content = &msg.content;
 
-    let response = context
-        .eludris_http_client
-        .post(&context.eludris_rest_url)
-        .json(&json!({"author": author, "content": content}))
-        .send()
-        .await?;
+    if !author.starts_with("Bridge-") {
+        let response = context
+            .eludris_http_client
+            .post(&context.eludris_rest_url)
+            .json(&json!({"author": author, "content": content}))
+            .send()
+            .await?;
 
-    if let StatusCode::OK = response.status() {
-        panic!(
-            "{:?} failed with status code {}",
-            response,
-            response.status()
-        );
+        if let StatusCode::OK = response.status() {
+            panic!(
+                "{:?} failed with status code {}",
+                response,
+                response.status()
+            );
+        }
     }
 
     Ok(())
