@@ -51,14 +51,14 @@ async fn main() -> ThangResult<()> {
         webhook_id: Url::parse(&webhook_url)?
             .path_segments()
             .unwrap()
-            .skip(2)
-            .next()
+            .nth(2)
             .unwrap()
             .parse::<u64>()?,
         bridge_channel_id: env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?,
         eludris_gateway_url: env::var("ELUDRIS_GATEWAY_URL")
-            .unwrap_or(DEFAULT_GATEWAY_URL.to_string()),
-        eludris_rest_url: env::var("ELUDRIS_REST_URL").unwrap_or(DEFAULT_REST_URL.to_string()),
+            .unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string()),
+        eludris_rest_url: env::var("ELUDRIS_REST_URL")
+            .unwrap_or_else(|_| DEFAULT_REST_URL.to_string()),
     });
 
     while let Some((shard_id, event)) = events.next().await {
