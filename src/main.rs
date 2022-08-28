@@ -51,6 +51,7 @@ async fn main() -> ThangResult<()> {
         webhook_id: Url::parse(&webhook_url)?
             .path_segments()
             .unwrap()
+            .skip(2)
             .next()
             .unwrap()
             .parse::<u64>()?,
