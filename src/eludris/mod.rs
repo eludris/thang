@@ -73,7 +73,7 @@ async fn ping_ws(context: ContextT) -> ThangResult<()> {
             .eludris_ws_writer
             .lock()
             .await
-            .send(TungstenMessage::Ping(vec![b'h']))
+            .send(TungstenMessage::Ping(b"woo".to_vec()))
             .await?;
 
         thread::sleep(Duration::from_secs(15));
