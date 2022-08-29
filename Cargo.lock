@@ -1124,9 +1124,9 @@ dependencies = [
  "twilight",
  "twilight-gateway",
  "twilight-http",
+ "twilight-http-ratelimiting",
  "twilight-model",
  "twilight-validate",
- "url",
 ]
 
 [[package]]

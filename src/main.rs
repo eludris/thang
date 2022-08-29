@@ -5,6 +5,7 @@ mod types;
 use dotenv::dotenv;
 use futures::StreamExt;
 use std::{env, sync::Arc};
+use tokio::sync::Mutex;
 use tokio_tungstenite::connect_async;
 use twilight_gateway::{
     cluster::{Cluster, ShardScheme},
@@ -13,10 +14,10 @@ use twilight_gateway::{
 use twilight_http::Client;
 use twilight_model::{channel::message::AllowedMentions, id::Id};
 use types::{Context, ThangResult};
-use url::Url;
 
 const DEFAULT_REST_URL: &str = "https://eludris.tooty.xyz";
 const DEFAULT_GATEWAY_URL: &str = "wss://eludris.tooty.xyz/ws/";
+const WEBHOOK_NAME: &str = "Eludris Bridge";
 
 #[tokio::main]
 async fn main() -> ThangResult<()> {
@@ -24,7 +25,6 @@ async fn main() -> ThangResult<()> {
     env_logger::init();
 
     let token = env::var("TOKEN")?;
-    let webhook_url = env::var("WEBHOOK_URL")?;
 
     let scheme = ShardScheme::Range {
         from: 0,
@@ -52,18 +52,43 @@ async fn main() -> ThangResult<()> {
     let (eludris_ws_writer, eludris_ws_reader) =
         connect_async(&eludris_gateway_url).await?.0.split();
 
-    let url = Url::parse(&webhook_url)?;
-    let url_segments = url.path_segments().unwrap();
+    let eludris_ws_writer = Mutex::new(eludris_ws_writer);
+
+    let http = Client::builder()
+        .token(token)
+        .default_allowed_mentions(AllowedMentions::default())
+        .build();
+    let bridge_channel_id = Id::new(env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?);
+
+    let webhooks = http
+        .channel_webhooks(bridge_channel_id)
+        .exec()
+        .await?
+        .models()
+        .await?;
+
+    let blank = String::from("");
+    let webhook = webhooks
+        .into_iter()
+        .find(|w| w.name.as_ref().unwrap_or(&blank) == &WEBHOOK_NAME.to_string());
+
+    let webhook = match webhook {
+        Some(webhook) => webhook,
+        None => {
+            http.create_webhook(bridge_channel_id, WEBHOOK_NAME)
+                .unwrap()
+                .exec()
+                .await?
+                .model()
+                .await?
+        }
+    };
 
     let context = Arc::new(Context {
-        http: Client::builder()
-            .token(token)
-            .default_allowed_mentions(AllowedMentions::default())
-            .build(),
-        bridge_webhook_url: webhook_url.clone(),
-        bridge_webhook_id: Id::new(url_segments.clone().nth(2).unwrap().parse::<u64>()?),
-        bridge_webhook_token: url_segments.clone().nth(3).unwrap().to_string(),
-        bridge_channel_id: Id::new(env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?),
+        http,
+        bridge_webhook_id: webhook.id,
+        bridge_webhook_token: webhook.token.unwrap(),
+        bridge_channel_id,
         eludris_rest_url: env::var("ELUDRIS_REST_URL")
             .unwrap_or_else(|_| DEFAULT_REST_URL.to_string()),
         eludris_http_client: reqwest::Client::new(),

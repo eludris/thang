@@ -1,13 +1,12 @@
 mod message;
 mod shard;
 
-use crate::types::Context;
-use crate::types::ThangResult;
+use crate::types::{ContextT, ThangResult};
 use futures::StreamExt;
 use log::error;
 use message::on_message;
 use shard::on_shard_connect;
-use std::{future::Future, sync::Arc};
+use std::future::Future;
 use twilight_gateway::{cluster::Events, Event};
 
 use std::{error::Error, fmt};
@@ -23,7 +22,7 @@ impl fmt::Display for Thing {
     }
 }
 
-pub async fn iterate_websocket(mut events: Events, context: Arc<Context>) -> ThangResult<()> {
+pub async fn iterate_websocket(mut events: Events, context: ContextT) -> ThangResult<()> {
     while let Some((shard_id, event)) = events.next().await {
         tokio::spawn(handle_event(shard_id, event, context.clone()));
     }
@@ -31,7 +30,7 @@ pub async fn iterate_websocket(mut events: Events, context: Arc<Context>) -> Tha
     Ok(())
 }
 
-async fn handle_event(shard_id: u64, event: Event, context: Arc<Context>) {
+async fn handle_event(shard_id: u64, event: Event, context: ContextT) {
     match event {
         Event::ShardConnected(_) => on_shard_connect(shard_id),
         Event::MessageCreate(msg) => async_wrapper(on_message(*msg, context), "message_create"),
