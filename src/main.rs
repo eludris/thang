@@ -1,104 +1,111 @@
-mod commands;
-
-use std::collections::HashSet;
-use std::env;
+mod eludris;
+mod events;
+mod types;
 
 use dotenv::dotenv;
-use serenity::async_trait;
-use serenity::framework::standard::macros::{group, help};
-use serenity::framework::standard::{
-    help_commands, Args, CommandGroup, CommandResult, HelpOptions, StandardFramework,
+use futures::StreamExt;
+use std::{env, sync::Arc};
+use tokio::sync::Mutex;
+use tokio_tungstenite::connect_async;
+use twilight_gateway::{
+    cluster::{Cluster, ShardScheme},
+    Intents,
 };
-use serenity::http::Http;
-use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
-use serenity::model::id::UserId;
-use serenity::prelude::*;
+use twilight_http::Client;
+use twilight_model::{channel::message::AllowedMentions, id::Id};
+use types::{Context, ThangResult};
 
-use crate::commands::misc::*;
-
-#[group("general")]
-#[summary = "Miscellaneous commands (surprised?)"]
-#[description = "Commands that are so random they don't fit into one specific group :lol:"]
-#[commands(ping)]
-struct General;
-
-#[help]
-#[individual_command_tip = "Hi.\n
-Want info about a command? I have what you want.\n
-Will I tell you it? depends."]
-#[command_not_found_text = "The command you looked for literally doesn't exist L."]
-#[max_levenshtein_distance(3)]
-#[indention_prefix = "->"]
-#[lacking_permissions = "Hide"]
-async fn my_help(
-    ctx: &Context,
-    msg: &Message,
-    args: Args,
-    help_options: &'static HelpOptions,
-    groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>,
-) -> CommandResult {
-    help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await?;
-    Ok(())
-}
-
-struct Handler;
-
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        log::info!(
-            "Connected as {}#{}",
-            ready.user.name,
-            ready.user.discriminator
-        );
-    }
-}
+const DEFAULT_REST_URL: &str = "https://eludris.tooty.xyz";
+const DEFAULT_GATEWAY_URL: &str = "wss://eludris.tooty.xyz/ws/";
+const WEBHOOK_NAME: &str = "Eludris Bridge";
 
 #[tokio::main]
-async fn main() {
-    env_logger::init();
+async fn main() -> ThangResult<()> {
     dotenv().ok();
+    env_logger::init();
 
-    let token = env::var("TOKEN").expect("Couldn't find \"TOKEN\" enviroment variable");
+    let token = env::var("TOKEN")?;
 
-    let http = Http::new(&token);
-
-    let (owners, bot_id) = match http.get_current_application_info().await {
-        Ok(info) => {
-            let mut owners = HashSet::new();
-            if let Some(team) = info.team {
-                team.members.iter().for_each(|m| {
-                    owners.insert(m.user.id);
-                });
-            } else {
-                owners.insert(info.owner.id);
-            }
-            match http.get_current_user().await {
-                Ok(bot) => (owners, bot.id),
-                Err(why) => panic!("Couldn't get the bot's id: {:?}", why),
-            }
-        }
-        Err(why) => panic!("Couldn't fetch owner & bot ids: {:?}", why),
+    let scheme = ShardScheme::Range {
+        from: 0,
+        to: 0,
+        total: 1,
     };
 
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("-").on_mention(Some(bot_id)).owners(owners))
-        .help(&MY_HELP)
-        .group(&GENERAL_GROUP);
+    let intents = Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT;
 
-    let intents =
-        GatewayIntents::GUILDS | GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
+    let (cluster, event_iterator) = Cluster::builder(token.clone(), intents)
+        .shard_scheme(scheme)
+        .build()
+        .await?;
 
-    let mut client = Client::builder(token, intents)
-        .event_handler(Handler)
-        .framework(framework)
-        .await
-        .expect("Error creating client");
+    let cluster = Arc::new(cluster);
 
-    // start listening for events by starting a single shard
-    if let Err(why) = client.start().await {
-        println!("An error occurred while running the client: {:?}", why);
-    }
+    let cluster_spawn = cluster.clone();
+
+    tokio::spawn(async move {
+        cluster_spawn.up().await;
+    });
+
+    let eludris_gateway_url =
+        env::var("ELUDRIS_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string());
+    let (eludris_ws_writer, eludris_ws_reader) =
+        connect_async(&eludris_gateway_url).await?.0.split();
+
+    let eludris_ws_writer = Mutex::new(eludris_ws_writer);
+
+    let http = Client::builder()
+        .token(token)
+        .default_allowed_mentions(AllowedMentions::default())
+        .build();
+    let bridge_channel_id = Id::new(env::var("BRIDGE_CHANNEL_ID")?.parse::<u64>()?);
+
+    let webhooks = http
+        .channel_webhooks(bridge_channel_id)
+        .exec()
+        .await?
+        .models()
+        .await?;
+
+    let blank = String::from("");
+    let webhook = webhooks
+        .into_iter()
+        .find(|w| w.name.as_ref().unwrap_or(&blank) == &WEBHOOK_NAME.to_string());
+
+    let webhook = match webhook {
+        Some(webhook) => webhook,
+        None => {
+            http.create_webhook(bridge_channel_id, WEBHOOK_NAME)
+                .unwrap()
+                .exec()
+                .await?
+                .model()
+                .await?
+        }
+    };
+
+    let context = Arc::new(Context {
+        http,
+        bridge_webhook_id: webhook.id,
+        bridge_webhook_token: webhook.token.unwrap(),
+        bridge_channel_id,
+        eludris_rest_url: env::var("ELUDRIS_REST_URL")
+            .unwrap_or_else(|_| DEFAULT_REST_URL.to_string()),
+        eludris_http_client: reqwest::Client::new(),
+        eludris_gateway_url,
+        eludris_ws_writer,
+    });
+
+    let err = tokio::select! {
+        e = events::iterate_websocket(event_iterator, context.clone()) => {
+            log::error!("Discord failed first {:?}", e);
+            e
+        }
+        e = eludris::iterate_websocket(eludris_ws_reader, context.clone()) => {
+            log::error!("Eludris failed first {:?}", e);
+            e
+        }
+    };
+
+    err
 }
