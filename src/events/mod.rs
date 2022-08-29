@@ -9,19 +9,6 @@ use shard::on_shard_connect;
 use std::future::Future;
 use twilight_gateway::{cluster::Events, Event};
 
-use std::{error::Error, fmt};
-
-#[derive(Debug)]
-struct Thing;
-
-impl Error for Thing {}
-
-impl fmt::Display for Thing {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Oh no, something bad went down")
-    }
-}
-
 pub async fn iterate_websocket(mut events: Events, context: ContextT) -> ThangResult<()> {
     while let Some((shard_id, event)) = events.next().await {
         tokio::spawn(handle_event(shard_id, event, context.clone()));
