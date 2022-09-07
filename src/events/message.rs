@@ -17,7 +17,7 @@ pub async fn on_message(msg: MessageCreate, context: ContextT) -> ThangResult<()
     {
         let response = context
             .eludris_http_client
-            .post(&context.eludris_rest_url)
+            .post(format!("{}/messages/", context.eludris_rest_url))
             .json(&json!({"author": format!("Bridge-{}", author), "content": content}))
             .send()
             .await?;
