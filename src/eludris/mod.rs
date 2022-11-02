@@ -1,11 +1,11 @@
 use crate::types::{ContextT, Message, ThangResult, WsReader};
 use futures::{SinkExt, StreamExt};
-use std::thread;
 use std::time::Duration;
+use tokio::time;
 use tokio_tungstenite::tungstenite::protocol::Message as TungstenMessage;
 use twilight_http::{api_error::ApiError, error::ErrorType};
 use twilight_validate::message::MESSAGE_CONTENT_LENGTH_MAX;
-use twilight_validate::request::webhook_username as validate_webhook_username;
+use twilight_validate::request::webhook_username;
 
 pub async fn iterate_websocket(mut reader: WsReader, context: ContextT) -> ThangResult<()> {
     tokio::spawn(ping_ws(context.clone()));
@@ -25,7 +25,7 @@ pub async fn iterate_websocket(mut reader: WsReader, context: ContextT) -> Thang
 }
 
 async fn loop_webhook(context: ContextT, msg: Message) -> ThangResult<()> {
-    let username = match validate_webhook_username(&msg.author) {
+    let username = match webhook_username(&msg.author) {
         Ok(_) => &msg.author,
         Err(_) => "Eludris Bridge",
     };
@@ -59,8 +59,11 @@ async fn loop_webhook(context: ContextT, msg: Message) -> ThangResult<()> {
                     status: _,
                 } = err.kind()
                 {
-                    log::warn!("Bridge is ratelimited, waiting {}s", ratelimit.retry_after);
-                    thread::sleep(Duration::from_secs_f64(ratelimit.retry_after));
+                    log::warn!(
+                        "Bridge webhook is ratelimited, waiting {}s",
+                        ratelimit.retry_after
+                    );
+                    time::sleep(Duration::from_secs_f64(ratelimit.retry_after)).await;
                 }
             }
         }
@@ -76,6 +79,6 @@ async fn ping_ws(context: ContextT) -> ThangResult<()> {
             .send(TungstenMessage::Ping(b"woo".to_vec()))
             .await?;
 
-        thread::sleep(Duration::from_secs(15));
+        time::sleep(Duration::from_secs(15)).await;
     }
 }
