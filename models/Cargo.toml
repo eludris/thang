@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.147", features = ["derive"] }
+todel = { git = "https://github.com/eludris/todel", version = "0.2.4" }
+twilight-model = "0.14.0"
