@@ -6,7 +6,7 @@ WORKDIR /discord
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
 COPY discord/Cargo.toml Cargo.lock ./
-COPY ./thang-types /thang-types
+COPY ./models /models
 
 RUN cargo build --release
 RUN rm src/*.rs

@@ -1,5 +1,5 @@
 use crate::types::{ContextT, ThangResult};
-use thang_types::Message;
+use models::Message;
 use twilight_model::channel::message::Embed;
 use twilight_util::builder::embed::{EmbedBuilder, ImageSource};
 

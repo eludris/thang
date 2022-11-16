@@ -3,7 +3,7 @@ use crate::util::get_avatar_url;
 use redis::Commands;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
-use thang_types::{Attachment, Message};
+use models::{Attachment, Message};
 use twilight_model::gateway::payload::incoming::MessageCreate;
 
 #[derive(Debug, Serialize, Deserialize)]
