@@ -2,5 +2,5 @@
 members = [
     "discord",
     "eludris",
-    "thang-types",
+    "models",
 ]
