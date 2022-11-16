@@ -212,6 +212,7 @@ dependencies = [
  "redis",
  "serde",
  "serde_json",
+ "todel",
  "tokio",
  "twilight",
  "twilight-gateway",
@@ -219,6 +220,7 @@ dependencies = [
  "twilight-http-ratelimiting",
  "twilight-model",
  "twilight-util",
+ "twilight-validate",
 ]
 
 [[package]]
