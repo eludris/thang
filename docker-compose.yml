@@ -1,0 +1,21 @@
+version: "3"
+
+x-restart-policy:
+  &restart_policy
+  restart: unless-stopped
+
+services:
+  discord:
+    <<: *restart_policy
+    build:
+      context: .
+      dockerfile: discord/Dockerfile
+    depends_on: [ keydb ]
+    links: [ keydb ]
+    env_file: .env
+    environment:
+      # ...oh wait
+      REDIS_URL: redis://keydb:6379
+  keydb:
+    <<: *restart_policy
+    image: eqalpha/keydb
