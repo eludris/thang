@@ -14,14 +14,8 @@ pub enum Event {
 pub enum DiscordEvent {
     ChannelPinsUpdate(ChannelPinsUpdate),
     ChannelUpdate(Box<ChannelUpdate>),
-    GuildEmojisUpdate(GuildEmojisUpdate),
-    GuildStickersUpdate(GuildStickersUpdate),
     MessageCreate(Box<MessageCreate>),
     MessageDelete(MessageDelete),
     MessageDeleteBulk(MessageDeleteBulk),
     MessageUpdate(Box<MessageUpdate>),
-    ReactionAdd(Box<ReactionAdd>),
-    ReactionRemove(Box<ReactionRemove>),
-    ReactionRemoveAll(ReactionRemoveAll),
-    ReactionRemoveEmoji(ReactionRemoveEmoji),
 }
