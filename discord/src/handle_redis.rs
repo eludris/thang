@@ -41,15 +41,19 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
                     EMOJI_REGEX.captures_iter(&content.clone()).for_each(|c| {
                         let found = c.get(0).unwrap().as_str();
                         let name = c.get(1).unwrap().as_str();
-                        if let Some(emoji) = emojis.iter().find(|e| &e.name == name) {
+                        if let Some(emoji) = emojis.iter().find(|e| e.name == name) {
                             content = content.replace(found, &emoji.mention().to_string());
                         }
                     });
-                    let content = if content.len() > MESSAGE_CONTENT_LENGTH_MAX {
+
+                    let length = content.len();
+                    let content = if length > MESSAGE_CONTENT_LENGTH_MAX {
                         format!(
                             "{}... truncated message",
                             &content[..MESSAGE_CONTENT_LENGTH_MAX - 21]
                         )
+                    } else if length == 0 {
+                        return Ok(());
                     } else {
                         content
                     };
