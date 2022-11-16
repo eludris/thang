@@ -600,6 +600,8 @@ name = "models"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "todel",
+ "twilight-model",
 ]
 
 [[package]]
@@ -1030,6 +1032,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
+name = "todel"
+version = "0.2.4"
+source = "git+https://github.com/eludris/todel#e5e973e703abd48704645ca708f57b974fb08b6e"
+dependencies = [
+ "lazy_static",
+ "log",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "tokio"
 version = "1.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1097,6 +1110,15 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "toml"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
