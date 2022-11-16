@@ -5,7 +5,7 @@ mod util;
 
 use std::env;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use twilight_gateway::{
     cluster::{Cluster, ShardScheme},
     Intents,
@@ -85,7 +85,7 @@ async fn main() -> ThangResult<()> {
 
     log::info!("Found webhook {:?}", webhook.id.to_string());
 
-    let context = Arc::new(Mutex::new(Context {
+    let context = Arc::new(RwLock::new(Context {
         http,
         bridge_webhook_id: webhook.id,
         bridge_webhook_token: webhook.token.unwrap(),

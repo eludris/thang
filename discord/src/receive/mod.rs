@@ -15,7 +15,7 @@ pub async fn receive_redis(redis: redis::Client, context: ContextT) -> ThangResu
             .get_payload()
             .map(|s: String| serde_json::from_str::<Message>(&s))??;
 
-        let context = context.lock().await;
+        let context = context.read().await;
         context
             .http
             .execute_webhook(

@@ -17,7 +17,8 @@ struct RatelimitData {
 }
 
 pub async fn on_message(msg: MessageCreate, context: ContextT) -> ThangResult<()> {
-    let mut context = context.lock().await;
+    let context_r = context.read().await;
+
     let username = &msg.author.name;
     let author = match msg.member.as_ref() {
         Some(member) => member.nick.as_ref().unwrap_or(username),
@@ -41,12 +42,14 @@ pub async fn on_message(msg: MessageCreate, context: ContextT) -> ThangResult<()
     }
 
     if !author.starts_with("Bridge-")
-        && msg.channel_id == context.bridge_channel_id
-        && msg.author.id != context.bridge_webhook_id.cast()
+        && msg.channel_id == context_r.bridge_channel_id
+        && msg.author.id != context_r.bridge_webhook_id.cast()
         // Possible thanks to attachments and embeds
         && !content.is_empty()
         && username.len() + 7 < 32
     {
+        let mut context = context.write().await;
+
         context.redis.publish::<&str, String, String>(
             "messages",
             to_string(&Message {

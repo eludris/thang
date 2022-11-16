@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use twilight_model::id::{
     marker::{ChannelMarker, WebhookMarker},
@@ -8,7 +8,7 @@ use twilight_model::id::{
 };
 
 pub type ThangResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
-pub type ContextT = Arc<Mutex<Context>>;
+pub type ContextT = Arc<RwLock<Context>>;
 
 pub struct Context {
     pub http: twilight_http::Client,
