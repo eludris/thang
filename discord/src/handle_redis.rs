@@ -46,14 +46,11 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
                         }
                     });
 
-                    let length = content.len();
-                    let content = if length > MESSAGE_CONTENT_LENGTH_MAX {
+                    let content = if content.len() > MESSAGE_CONTENT_LENGTH_MAX {
                         format!(
                             "{}... truncated message",
                             &content[..MESSAGE_CONTENT_LENGTH_MAX - 21]
                         )
-                    } else if length == 0 {
-                        return Ok(());
                     } else {
                         content
                     };

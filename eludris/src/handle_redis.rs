@@ -95,11 +95,7 @@ pub async fn handle_redis(
                 }
             }
             // Eludris does not have anything other than message create.
-            Event::Discord(DiscordEvent::ChannelPinsUpdate(_)) => {}
-            Event::Discord(DiscordEvent::ChannelUpdate(_)) => {}
-            Event::Discord(DiscordEvent::MessageDelete(_)) => {}
-            Event::Discord(DiscordEvent::MessageDeleteBulk(_)) => {}
-            Event::Discord(DiscordEvent::MessageUpdate(_)) => {}
+            Event::Discord(_) => {}
             Event::Eludris(_) => {}
             payload => {
                 log::info!("Unhandled payload from pubsub: {:?}", payload)
