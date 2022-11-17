@@ -207,9 +207,11 @@ dependencies = [
  "dotenv",
  "env_logger",
  "futures",
+ "lazy_static",
  "log",
  "models",
  "redis",
+ "regex",
  "serde",
  "serde_json",
  "todel",
@@ -218,6 +220,7 @@ dependencies = [
  "twilight-gateway",
  "twilight-http",
  "twilight-http-ratelimiting",
+ "twilight-mention",
  "twilight-model",
  "twilight-util",
  "twilight-validate",
@@ -1257,6 +1260,15 @@ dependencies = [
  "http",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "twilight-mention"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e11a444fc7fa4940200e3cc0b574fa92621254e19944087dde929a60996ddc9"
+dependencies = [
+ "twilight-model",
 ]
 
 [[package]]
