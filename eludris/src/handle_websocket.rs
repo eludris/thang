@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
+use eludrs::GatewayClient;
 use futures::StreamExt;
 use models::Event;
 use models::ThangResult;
 use redis::{aio::Connection, AsyncCommands};
 use todel::models::Payload;
 use tokio::sync::Mutex;
-use uwuki::GatewayClient;
 
 pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> ThangResult<()> {
     let redis = Arc::new(Mutex::new(redis));

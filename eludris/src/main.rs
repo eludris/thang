@@ -1,10 +1,10 @@
 mod handle_redis;
 mod handle_websocket;
 
+use eludrs::{GatewayClient, HttpClient};
 use models::ThangResult;
 use std::env;
 use twilight_model::id::{marker::ChannelMarker, Id};
-use uwuki::{GatewayClient, HttpClient};
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
 const DEFAULT_REST_URL: &str = "https://api.eludris.gay";

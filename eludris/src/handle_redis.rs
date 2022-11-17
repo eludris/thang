@@ -1,5 +1,6 @@
 // May seem unreachable now, but not when more items are added.
 #![allow(unreachable_patterns)]
+use eludrs::HttpClient;
 use futures::StreamExt;
 use models::DiscordEvent;
 use models::Event;
@@ -7,7 +8,6 @@ use models::ThangResult;
 use redis::aio::Connection;
 use serde::{Deserialize, Serialize};
 use twilight_model::id::{marker::ChannelMarker, Id};
-use uwuki::HttpClient;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RatelimitResponse {
