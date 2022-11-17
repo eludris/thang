@@ -29,7 +29,8 @@ async fn main() -> ThangResult<()> {
         "Could not deserialize the \"DISCORD_CHANNEL_ID\" environment variable as a valid Discord ID",
     );
     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
-    let webhook_name = env::var("WEBHOOK_NAME").unwrap_or_else(|_| WEBHOOK_NAME.to_string());
+    let webhook_name =
+        env::var("DISCORD_WEBHOOK_NAME").unwrap_or_else(|_| WEBHOOK_NAME.to_string());
 
     let redis = redis::Client::open(redis_url)?;
 
