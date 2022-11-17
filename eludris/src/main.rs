@@ -1,13 +1,14 @@
 mod handle_redis;
+mod handle_websocket;
 
 use models::ThangResult;
-use reqwest::Client;
 use std::env;
 use twilight_model::id::{marker::ChannelMarker, Id};
+use uwuki::{GatewayClient, HttpClient};
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
-const DEFAULT_REST_URL: &str = "https://eludris.tooty.xyz";
-// const DEFAULT_GATEWAY_URL: &str = "wss://eludris.tooty.xyz/ws/";
+const DEFAULT_REST_URL: &str = "https://api.eludris.gay";
+const DEFAULT_GATEWAY_URL: &str = "wss://ws.eludris.gay/";
 
 #[tokio::main]
 async fn main() -> ThangResult<()> {
@@ -29,25 +30,21 @@ async fn main() -> ThangResult<()> {
     log::info!("Connected to Redis {}", redis.get_connection_info().addr);
 
     let rest_url = env::var("ELUDRIS_REST_URL").unwrap_or_else(|_| DEFAULT_REST_URL.to_string());
-    // let gateway_url =
-    //     env::var("ELUDRIS_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string());
-    // let (writer, reader) = connect_async(&gateway_url).await?.0.split();
+    let gateway_url =
+        env::var("ELUDRIS_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string());
 
-    // let writer = Mutex::new(writer);
-
-    let client = Client::new();
+    let rest = HttpClient::new().rest_url(rest_url);
+    let gateway = GatewayClient::new().gateway_url(gateway_url);
 
     let err = tokio::select! {
-        e = handle_redis::handle_redis( redis.get_async_connection().await?, client, rest_url, discord_bridge_channel_id)=> {
+        e = handle_redis::handle_redis( redis.get_async_connection().await?, rest, discord_bridge_channel_id) => {
             log::error!("Events failed first {:?}", e);
-        e
+            e
         },
-        // e = handle_websocket::handle_websocket(redis.get_async_connection().await?, reader) => {
-        //     log::error!("Websocket failed first {:?}", e);
-        //     e},
-        // e = ping_websocket::ping_websocket(writer) => {
-        //     log::error!("Websocket failed first {:?}", e);
-        //     e},
+        e = handle_websocket::handle_websocket(redis.get_async_connection().await?, gateway) => {
+            log::error!("Websocket failed first {:?}", e);
+            e
+        },
     };
 
     err

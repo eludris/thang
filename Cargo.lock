@@ -233,6 +233,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
+name = "dotenvy"
+version = "0.15.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03d8c417d7a8cb362e0c37e5d815f5eb7c37f79ff93707329d5a194e42e54ca0"
+
+[[package]]
 name = "eludris"
 version = "0.1.0"
 dependencies = [
@@ -244,12 +250,12 @@ dependencies = [
  "log",
  "models",
  "redis",
- "reqwest",
  "serde",
  "serde_json",
+ "todel",
  "tokio",
- "tokio-tungstenite",
  "twilight-model",
+ "uwuki",
 ]
 
 [[package]]
@@ -1332,9 +1338,11 @@ checksum = "f714dd15bead90401d77e04243611caec13726c2408afd5b31901dfcdcb3b181"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "rustls",
  "rustls-native-certs",
  "tokio",
+ "tokio-native-tls",
  "tokio-rustls",
  "tungstenite",
  "webpki",
@@ -1419,6 +1427,7 @@ dependencies = [
  "http",
  "httparse",
  "log",
+ "native-tls",
  "rand",
  "rustls",
  "sha-1",
@@ -1590,6 +1599,35 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
+
+[[package]]
+name = "uwuki"
+version = "0.1.0"
+source = "git+https://github.com/enokiun/uwuki#03f4877740e270d320bbb30ddf02456bb361051e"
+dependencies = [
+ "dotenvy",
+ "env_logger",
+ "futures",
+ "lazy_static",
+ "log",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "todel",
+ "tokio",
+ "tokio-tungstenite",
+ "uwuki_macros",
+]
+
+[[package]]
+name = "uwuki_macros"
+version = "0.1.0"
+source = "git+https://github.com/enokiun/uwuki#03f4877740e270d320bbb30ddf02456bb361051e"
+dependencies = [
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "vcpkg"

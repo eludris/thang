@@ -77,7 +77,7 @@ async fn main() -> ThangResult<()> {
     log::info!("Found webhook {:?}", webhook.id.to_string());
 
     let err = tokio::select!(
-        e  = handle_events::handle_events(event_iterator, redis.get_async_connection().await?) => {
+        e  = handle_events::handle_events(event_iterator, redis.get_async_connection().await?, webhook.id) => {
             log::error!("Events failed first {:?}", e);
         e
         },

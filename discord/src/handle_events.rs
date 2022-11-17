@@ -6,8 +6,13 @@ use models::{DiscordEvent, Event};
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
 use twilight_gateway::{cluster::Events, Event as GatewayEvent};
+use twilight_model::id::{marker::WebhookMarker, Id};
 
-pub async fn handle_events(mut events: Events, conn: Connection) -> ThangResult<()> {
+pub async fn handle_events(
+    mut events: Events,
+    conn: Connection,
+    webhook_id: Id<WebhookMarker>,
+) -> ThangResult<()> {
     let conn = Arc::new(Mutex::new(conn));
     while let Some((_, event)) = events.next().await {
         let conn = Arc::clone(&conn);
@@ -20,6 +25,11 @@ pub async fn handle_events(mut events: Events, conn: Connection) -> ThangResult<
                     Event::Discord(DiscordEvent::ChannelUpdate(data))
                 }
                 GatewayEvent::MessageCreate(data) => {
+                    // Ignore webhook.
+                    if data.author.id.cast::<WebhookMarker>() == webhook_id {
+                        return;
+                    }
+
                     Event::Discord(DiscordEvent::MessageCreate(data))
                 }
                 GatewayEvent::MessageDelete(data) => {

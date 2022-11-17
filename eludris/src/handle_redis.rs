@@ -5,12 +5,9 @@ use models::DiscordEvent;
 use models::Event;
 use models::ThangResult;
 use redis::aio::Connection;
-use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::time::Duration;
-use tokio::time;
 use twilight_model::id::{marker::ChannelMarker, Id};
+use uwuki::HttpClient;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RatelimitResponse {
@@ -24,8 +21,7 @@ struct RatelimitData {
 
 pub async fn handle_redis(
     redis: Connection,
-    client: Client,
-    rest_url: String,
+    rest: HttpClient,
     discord_bridge_channel_id: Id<ChannelMarker>,
 ) -> ThangResult<()> {
     let mut pubsub = redis.into_pubsub();
@@ -63,36 +59,8 @@ pub async fn handle_redis(
                     }
                     content.push_str(&attachments);
                 }
-
-                loop {
-                    let response = client
-                        .post(format!("{}/messages/", rest_url))
-                        .json(&json!({"author": format!("Bridge-{}", author), "content": content}))
-                        .send()
-                        .await?;
-
-                    match response.status() {
-                        StatusCode::OK => break,
-                        StatusCode::TOO_MANY_REQUESTS => {
-                            let RatelimitResponse {
-                                data: RatelimitData { retry_after },
-                            } = response.json().await?;
-                            log::warn!(
-                                "Bridge eludris user is ratelimited, waiting {}s",
-                                retry_after
-                            );
-                            time::sleep(Duration::from_secs(retry_after)).await;
-                        }
-                        _ => {
-                            log::warn!(
-                                "{:?} failed with status code {}",
-                                response,
-                                response.status()
-                            );
-                            break;
-                        }
-                    }
-                }
+                rest.send_message(format!("Bridge-{}", author), &content)
+                    .await?;
             }
             // Eludris does not have anything other than message create.
             Event::Discord(_) => {}
