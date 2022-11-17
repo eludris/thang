@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use crate::types::ThangResult;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use models::Event;
+use models::ThangResult;
 use redis::aio::Connection;
 use regex::Regex;
 use todel::models::Payload;

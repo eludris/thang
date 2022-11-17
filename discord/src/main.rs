@@ -1,7 +1,7 @@
 mod handle_events;
 mod handle_redis;
-mod types;
 
+use models::ThangResult;
 use std::env;
 use std::sync::Arc;
 use twilight_gateway::{cluster::Cluster, Intents};
@@ -10,7 +10,6 @@ use twilight_model::{
     channel::message::AllowedMentions,
     id::{marker::ChannelMarker, Id},
 };
-use types::ThangResult;
 
 const WEBHOOK_NAME: &str = "Eludris Bridge";
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";

@@ -16,6 +16,16 @@ services:
     environment:
       # ...oh wait
       REDIS_URL: redis://keydb:6379
+  eludris:
+    <<: *restart_policy
+    build:
+      context: .
+      dockerfile: eludris/Dockerfile
+    depends_on: [ keydb ]
+    links: [ keydb ]
+    env_file: .env
+    environment:
+      REDIS_URL: redis://keydb:6379
   keydb:
     <<: *restart_policy
     image: eqalpha/keydb

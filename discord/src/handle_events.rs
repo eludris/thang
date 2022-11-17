@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::types::ThangResult;
 use futures::StreamExt;
+use models::ThangResult;
 use models::{DiscordEvent, Event};
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
