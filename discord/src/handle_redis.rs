@@ -2,15 +2,21 @@ use std::time::Duration;
 
 use crate::types::ThangResult;
 use futures::StreamExt;
+use lazy_static::lazy_static;
 use models::Event;
 use redis::aio::Connection;
+use regex::Regex;
 use todel::models::Payload;
 use tokio::time;
 use twilight_http::{api_error::ApiError, error::ErrorType, Client};
+use twilight_mention::Mention;
 use twilight_model::channel::Webhook;
 use twilight_validate::{message::MESSAGE_CONTENT_LENGTH_MAX, request::webhook_username};
 
 pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> ThangResult<()> {
+    lazy_static! {
+        static ref EMOJI_REGEX: Regex = Regex::new(r":(\w+):").unwrap();
+    }
     let mut pubsub = conn.into_pubsub();
 
     pubsub.subscribe("thang-bridge").await?;
@@ -23,13 +29,29 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
         match payload {
             Event::Eludris(Payload::Message(msg)) => {
                 if !msg.author.starts_with("Bridge-") {
-                    let content = if msg.content.len() > MESSAGE_CONTENT_LENGTH_MAX {
+                    let emojis = http
+                        .emojis(webhook.guild_id.unwrap())
+                        .await
+                        .unwrap()
+                        .models()
+                        .await
+                        .unwrap();
+
+                    let mut content = msg.content;
+                    EMOJI_REGEX.captures_iter(&content.clone()).for_each(|c| {
+                        let found = c.get(0).unwrap().as_str();
+                        let name = c.get(1).unwrap().as_str();
+                        if let Some(emoji) = emojis.iter().find(|e| &e.name == name) {
+                            content = content.replace(found, &emoji.mention().to_string());
+                        }
+                    });
+                    let content = if content.len() > MESSAGE_CONTENT_LENGTH_MAX {
                         format!(
                             "{}... truncated message",
-                            &msg.content[..MESSAGE_CONTENT_LENGTH_MAX - 21]
+                            &content[..MESSAGE_CONTENT_LENGTH_MAX - 21]
                         )
                     } else {
-                        msg.content
+                        content
                     };
                     loop {
                         let token = webhook.token.as_ref().unwrap();
