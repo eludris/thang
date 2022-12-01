@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 dotenv = "0.15.0"
-eludrs = { git = "https://github.com/EnokiUN/eludrs", version = "0.1.0" }
+eludrs = { git = "https://github.com/eludris-community/eludrs", version = "0.1.0" }
 env = "0.0.0"
 env_logger = "0.9.3"
 futures = "0.3.25"

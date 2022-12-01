@@ -365,7 +365,7 @@ dependencies = [
 [[package]]
 name = "eludrs"
 version = "0.1.0"
-source = "git+https://github.com/EnokiUN/eludrs#b8468cba3d12596e7782fdf26bdc163d58c67899"
+source = "git+https://github.com/eludris-community/eludrs#f542912d0f233bd6bc44235b47c02e62d4c073af"
 dependencies = [
  "futures",
  "log",
