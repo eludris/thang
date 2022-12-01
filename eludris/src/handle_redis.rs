@@ -31,8 +31,20 @@ pub async fn handle_redis(
 
     while let Some(payload) = pubsub.next().await {
         // TODO: handle more of the errors here
-        let payload: Event =
-            serde_json::from_str(&payload.get_payload::<String>().unwrap()).unwrap();
+        let payload: String = match payload.get_payload() {
+            Ok(payload) => payload,
+            Err(err) => {
+                log::error!("Could not get pubsub payload: {}", err);
+                continue;
+            }
+        };
+        let payload: Event = match serde_json::from_str(&payload) {
+            Ok(payload) => payload,
+            Err(err) => {
+                log::error!("Failed to deserialize event payload: {}", err);
+                continue;
+            }
+        };
         match payload {
             Event::Discord(DiscordEvent::MessageCreate(msg)) => {
                 if msg.channel_id != discord_bridge_channel_id {
@@ -40,10 +52,15 @@ pub async fn handle_redis(
                 }
 
                 let username = &msg.author.name;
-                let author = match msg.member.as_ref() {
+                let name = match msg.member.as_ref() {
                     Some(member) => member.nick.as_ref().unwrap_or(username),
                     None => username,
                 };
+                let mut name = format!("Bridge-{}", name);
+                if name.len() > 32 {
+                    name = name.drain(..32).collect();
+                }
+
                 let mut content = msg.content.clone();
 
                 let attachments = msg
@@ -59,8 +76,7 @@ pub async fn handle_redis(
                     }
                     content.push_str(&attachments);
                 }
-                rest.send_message(format!("Bridge-{}", author), &content)
-                    .await?;
+                rest.send_message(name, &content).await?;
             }
             // Eludris does not have anything other than message create.
             Event::Discord(_) => {}
