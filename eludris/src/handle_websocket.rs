@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use eludrs::todel::Payload;
 use eludrs::GatewayClient;
 use futures::StreamExt;
 use models::Event;
 use models::ThangResult;
 use redis::{aio::Connection, AsyncCommands};
-use todel::models::Payload;
 use tokio::sync::Mutex;
 
 pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> ThangResult<()> {
@@ -16,7 +16,7 @@ pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> Than
         let redis = Arc::clone(&redis);
         tokio::spawn(async move {
             if !msg.author.starts_with("Bridge-") {
-                let event = Event::Eludris(Payload::Message(msg));
+                let event = Event::Eludris(Payload::MessageCreate(msg));
                 redis
                     .lock()
                     .await

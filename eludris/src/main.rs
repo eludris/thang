@@ -37,7 +37,7 @@ async fn main() -> ThangResult<()> {
     let gateway = GatewayClient::new().gateway_url(gateway_url);
 
     let err = tokio::select! {
-        e = handle_redis::handle_redis( redis.get_async_connection().await?, rest, discord_bridge_channel_id) => {
+        e = handle_redis::handle_redis(redis.get_async_connection().await?, rest, discord_bridge_channel_id) => {
             log::error!("Events failed first {:?}", e);
             e
         },

@@ -27,7 +27,7 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
         let payload: Event =
             serde_json::from_str(&payload.get_payload::<String>().unwrap()).unwrap();
         match payload {
-            Event::Eludris(Payload::Message(msg)) => {
+            Event::Eludris(Payload::MessageCreate(msg)) => {
                 let emojis = http
                     .emojis(webhook.guild_id.unwrap())
                     .await
