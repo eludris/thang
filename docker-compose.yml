@@ -13,10 +13,12 @@ services:
     pull_policy: build
     depends_on: [ keydb ]
     links: [ keydb ]
-    env_file: .env
     environment:
       # ...oh wait
       REDIS_URL: redis://keydb:6379
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+      DISCORD_WEBHOOK_NAME: ${DISCORD_WEBHOOK_NAME:-Eludris Bridge}
   eludris:
     <<: *restart_policy
     build:
@@ -25,9 +27,11 @@ services:
     pull_policy: build
     depends_on: [ keydb ]
     links: [ keydb ]
-    env_file: .env
     environment:
       REDIS_URL: redis://keydb:6379
+      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+      ELUDRIS_REST_URL: ${ELUDRIS_REST_URL:-https://api.eludris.gay}
+      ELUDRIS_GATEWAY_URL: ${ELUDRIS_GATEWAY_URL:-wss://ws.eludris.gay/}
   keydb:
     <<: *restart_policy
     image: eqalpha/keydb
