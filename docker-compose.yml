@@ -10,6 +10,7 @@ services:
     build:
       context: .
       dockerfile: discord/Dockerfile
+    pull_policy: build
     depends_on: [ keydb ]
     links: [ keydb ]
     env_file: .env
@@ -21,6 +22,7 @@ services:
     build:
       context: .
       dockerfile: eludris/Dockerfile
+    pull_policy: build
     depends_on: [ keydb ]
     links: [ keydb ]
     env_file: .env
