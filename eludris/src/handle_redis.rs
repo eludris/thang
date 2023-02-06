@@ -63,6 +63,26 @@ pub async fn handle_redis(
 
                 let mut content = msg.content.clone();
 
+                if let Some(referenced) = &msg.referenced_message {
+                    let mut reply = referenced
+                        .content
+                        .lines()
+                        .map(|l| format!("> {}", l))
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    let username = &referenced.author.name;
+                    let mut name = match referenced.member.as_ref() {
+                        Some(member) => member.nick.as_ref().unwrap_or(username),
+                        None => username,
+                    }
+                    .clone();
+                    if name.len() > 32 {
+                        name = name.drain(..32).collect();
+                    }
+                    reply.push_str(&format!("\n@{}", name));
+                    content = format!("\n{}\n{}", reply, content);
+                }
+
                 let attachments = msg
                     .attachments
                     .iter()
