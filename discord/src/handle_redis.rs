@@ -24,8 +24,20 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
 
     while let Some(payload) = pubsub.next().await {
         // TODO: handle more of the errors here
-        let payload: Event =
-            serde_json::from_str(&payload.get_payload::<String>().unwrap()).unwrap();
+        let payload: String = match payload.get_payload() {
+            Ok(payload) => payload,
+            Err(err) => {
+                log::error!("Could not get pubsub payload: {}", err);
+                continue;
+            }
+        };
+        let payload: Event = match serde_json::from_str(&payload) {
+            Ok(payload) => payload,
+            Err(err) => {
+                log::error!("Failed to deserialize event payload: {}", err);
+                continue;
+            }
+        };
         match payload {
             Event::Eludris(Payload::MessageCreate(msg)) => {
                 let emojis = http
