@@ -3,8 +3,7 @@ mod handle_redis;
 
 use models::ThangResult;
 use std::env;
-use std::sync::Arc;
-use twilight_gateway::{cluster::Cluster, Intents};
+use twilight_gateway::{CloseFrame, Intents, Shard, ShardId};
 use twilight_http::Client;
 use twilight_model::{
     channel::message::AllowedMentions,
@@ -37,16 +36,9 @@ async fn main() -> ThangResult<()> {
     // Get Discord ready.
     let intents = Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT;
 
-    let (cluster, event_iterator) = Cluster::new(token.clone(), intents).await?;
+    let mut shard = Shard::new(ShardId::ONE, token.clone(), intents);
 
-    let cluster = Arc::new(cluster);
-
-    let cluster_spawn = Arc::clone(&cluster);
-
-    tokio::spawn(async move {
-        cluster_spawn.up().await;
-        log::info!("Connected to Discord");
-    });
+    log::info!("Connected to Discord");
 
     let http = Client::builder()
         .token(token)
@@ -78,7 +70,7 @@ async fn main() -> ThangResult<()> {
     log::info!("Found webhook {:?}", webhook.id.to_string());
 
     let err = tokio::select!(
-        e  = handle_events::handle_events(event_iterator, redis.get_async_connection().await?, webhook.id) => {
+        e  = handle_events::handle_events(&mut shard, redis.get_async_connection().await?, webhook.id) => {
             log::error!("Events failed first {:?}", e);
         e
         },
@@ -87,6 +79,13 @@ async fn main() -> ThangResult<()> {
         e
         },
     );
+
+    shard
+        .close(CloseFrame {
+            code: 1001,
+            reason: std::borrow::Cow::Borrowed("Shutting down"),
+        })
+        .await?;
 
     err
 }

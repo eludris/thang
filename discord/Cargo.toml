@@ -7,22 +7,22 @@ edition = "2021"
 
 [dependencies]
 dotenv = "0.15.0"
-env_logger = "0.9.3"
+env_logger = "0.10.0"
 log = "0.4.17"
-tokio = { version = "1.21.2", features = [ "macros", "rt-multi-thread", "sync" ] }
-twilight = "0.14.0"
-twilight-gateway = "0.14.0"
-twilight-http = "0.14.0"
-twilight-http-ratelimiting = "0.14.0"
-twilight-model = "0.14.0"
-twilight-util = { version = "0.14.0", features = [ "builder" ] }
+tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread", "sync"] }
+twilight = "0.15.0"
+twilight-gateway = "0.15.1"
+twilight-http = "0.15.1"
+twilight-http-ratelimiting = "0.15.1"
+twilight-model = "0.15.1"
+twilight-util = { version = "0.15.1", features = ["builder"] }
 futures = "0.3.25"
-serde = { version = "1.0.144", features = [ "derive" ] }
+serde = { version = "1.0.144", features = ["derive"] }
 redis = { version = "0.22.1", features = ["tokio-comp"] }
 models = { path = "../models" }
 serde_json = "1.0.87"
-twilight-validate = "0.14.0"
+twilight-validate = "0.15.1"
 regex = "1.7.0"
 lazy_static = "1.4.0"
-twilight-mention = "0.14.0"
+twilight-mention = "0.15.1"
 todel = { git = "https://github.com/eludris/todel", version = "0.3.0" }

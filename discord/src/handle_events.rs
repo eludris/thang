@@ -1,20 +1,32 @@
 use std::sync::Arc;
 
-use futures::StreamExt;
 use models::ThangResult;
 use models::{DiscordEvent, Event};
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
-use twilight_gateway::{cluster::Events, Event as GatewayEvent};
+use twilight_gateway::{Event as GatewayEvent, Shard};
 use twilight_model::id::{marker::WebhookMarker, Id};
 
 pub async fn handle_events(
-    mut events: Events,
+    shard: &mut Shard,
     conn: Connection,
     webhook_id: Id<WebhookMarker>,
 ) -> ThangResult<()> {
     let conn = Arc::new(Mutex::new(conn));
-    while let Some((_, event)) = events.next().await {
+    loop {
+        let event = match shard.next_event().await {
+            Ok(event) => event,
+            Err(source) => {
+                log::warn!("error receiving event");
+
+                if source.is_fatal() {
+                    break;
+                }
+
+                continue;
+            }
+        };
+
         let conn = Arc::clone(&conn);
         tokio::spawn(async move {
             let payload = match event {
