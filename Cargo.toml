@@ -1,6 +1,2 @@
 [workspace]
-members = [
-    "discord",
-    "eludris",
-    "models",
-]
+members = ["discord", "eludris", "models", "revolt-wrapper"]

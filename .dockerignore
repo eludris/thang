@@ -4,3 +4,4 @@
 !models/
 !.env
 !Cargo*
+!revolt-wrapper/
