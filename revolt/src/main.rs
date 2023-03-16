@@ -30,7 +30,10 @@ async fn main() -> ThangResult<()> {
                     .duration_since(UNIX_EPOCH)
                     .expect("Time went backwards")
                     .as_millis();
-                log::info!("Received pong! Latency is {}ms", now - data);
+                log::info!(
+                    "Received pong! Latency is {}ms",
+                    now - u128::from_be_bytes(data.try_into().unwrap())
+                );
             }
             _ => {}
         }

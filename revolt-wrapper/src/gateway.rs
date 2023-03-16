@@ -67,12 +67,13 @@ fn start_ping(mut tx: WsSender) -> tokio::task::JoinHandle<()> {
             let current_timestamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_millis();
+                .as_millis()
+                .to_be_bytes();
 
             match tx
                 .send(Message::Binary(
                     rmp_serde::to_vec_named(&Event::Ping {
-                        data: current_timestamp,
+                        data: current_timestamp.to_vec(),
                     })
                     .unwrap(),
                 ))

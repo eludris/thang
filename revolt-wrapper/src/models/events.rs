@@ -15,10 +15,10 @@ pub enum ErrorType {
 #[serde(tag = "type")]
 pub enum Event {
     Authenticate { token: String },
-    Ping { data: u128 },
+    Ping { data: Vec<u8> },
     Error { error: ErrorType },
     Authenticated,
     Bulk { v: Vec<Event> },
-    Pong { data: u128 },
+    Pong { data: Vec<u8> },
     Message(Message),
 }
