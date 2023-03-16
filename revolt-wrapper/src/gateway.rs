@@ -6,7 +6,10 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use futures::{stream::SplitStream, SinkExt, Stream, StreamExt};
+use futures::{
+    stream::{SplitSink, SplitStream},
+    SinkExt, Stream, StreamExt,
+};
 use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle, time};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use url::Url;
@@ -14,6 +17,7 @@ use url::Url;
 use crate::models::{Event, ThreadResult};
 
 type WsReceiver = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
+type WsSender = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
 
 pub const GATEWAY_URL: &str = "wss://ws.revolt.chat";
 const _GATEWAY_VERSION: &str = "1";
@@ -57,6 +61,45 @@ impl GatewayClient {
     }
 }
 
+fn start_ping(mut tx: WsSender) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        loop {
+            let current_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+
+            match tx
+                .send(Message::Binary(
+                    rmp_serde::to_vec_named(&Event::Ping {
+                        data: current_timestamp,
+                    })
+                    .unwrap(),
+                ))
+                .await
+            {
+                Ok(_) => time::sleep(Duration::from_secs(20)).await,
+                Err(err) => {
+                    log::debug!("Encountered error while pinging {:?}", err);
+                    break;
+                }
+            }
+        }
+    })
+}
+
+fn get_url(gateway_url: &str, token: &str) -> Url {
+    Url::parse_with_params(
+        gateway_url,
+        &[
+            ("version", _GATEWAY_VERSION),
+            ("token", token),
+            ("format", "msgpack"),
+        ],
+    )
+    .unwrap()
+}
+
 impl Events {
     fn new(gateway_url: String, token: String) -> Self {
         Self {
@@ -87,30 +130,9 @@ impl Events {
             .unwrap(),
         )
         .await?;
-        let (mut tx, rx) = socket.split();
+        let (tx, rx) = socket.split();
 
-        *ping = Some(tokio::spawn(async move {
-            loop {
-                match tx
-                    .send(Message::Binary(
-                        rmp_serde::to_vec_named(&Event::Ping {
-                            data: SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap()
-                                .as_millis(),
-                        })
-                        .unwrap(),
-                    ))
-                    .await
-                {
-                    Ok(_) => time::sleep(Duration::from_secs(20)).await,
-                    Err(err) => {
-                        log::debug!("Encountered error while pinging {:?}", err);
-                        break;
-                    }
-                }
-            }
-        }));
+        *ping = Some(start_ping(tx));
         *self.rx.lock().await = Some(rx);
         Ok(())
     }
@@ -128,43 +150,10 @@ impl Events {
             if ping.is_some() {
                 ping.as_mut().unwrap().abort();
             }
-            match connect_async(
-                Url::parse_with_params(
-                    &gateway_url,
-                    &[
-                        ("version", _GATEWAY_VERSION),
-                        ("token", token.as_str()),
-                        ("format", "msgpack"),
-                    ],
-                )
-                .unwrap(),
-            )
-            .await
-            {
+            match connect_async(get_url(&gateway_url, &token)).await {
                 Ok((socket, _)) => {
-                    let (mut tx, new_rx) = socket.split();
-                    *ping = Some(tokio::spawn(async move {
-                        loop {
-                            match tx
-                                .send(Message::Binary(
-                                    rmp_serde::to_vec_named(&Event::Ping {
-                                        data: SystemTime::now()
-                                            .duration_since(UNIX_EPOCH)
-                                            .unwrap()
-                                            .as_millis(),
-                                    })
-                                    .unwrap(),
-                                ))
-                                .await
-                            {
-                                Ok(_) => time::sleep(Duration::from_secs(20)).await,
-                                Err(err) => {
-                                    log::debug!("Encountered error while pinging {:?}", err);
-                                    break;
-                                }
-                            }
-                        }
-                    }));
+                    let (tx, new_rx) = socket.split();
+                    *ping = Some(start_ping(tx));
                     *rx.lock().await = Some(new_rx);
                     log::debug!("Reconnected to websocket");
                     break;
@@ -198,11 +187,17 @@ impl Stream for Events {
 
             match rx.as_mut().unwrap().poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(msg))) => match msg {
-                    Message::Binary(msg) => {
-                        if let Ok(event) = rmp_serde::from_slice(msg.as_slice()) {
-                            return Poll::Ready(Some(event));
+                    Message::Binary(msg) => match rmp_serde::from_slice(msg.as_slice()) {
+                        Ok(event) => return Poll::Ready(Some(event)),
+                        Err(rmp_serde::decode::Error::Syntax(msg)) => {
+                            if !msg.starts_with("unknown variant") {
+                                log::debug!("Failed to parse event {:?}", msg);
+                            }
                         }
-                    }
+                        Err(err) => {
+                            log::debug!("Failed to parse event {:?}", err);
+                        }
+                    },
                     Message::Close(_) => {
                         log::debug!("Websocket closed, reconnecting");
                         tokio::spawn(Events::reconect(
@@ -214,7 +209,9 @@ impl Stream for Events {
                         ));
                         return Poll::Pending;
                     }
-                    _ => {}
+                    _ => {
+                        log::debug!("Received unknown message");
+                    }
                 },
                 Poll::Pending => break Poll::Pending,
                 Poll::Ready(None) => {
