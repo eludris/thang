@@ -1,7 +1,8 @@
 *
+!.env
+!Cargo*
 !discord/
 !eludris/
 !models/
-!.env
-!Cargo*
 !revolt-wrapper/
+!revolt/

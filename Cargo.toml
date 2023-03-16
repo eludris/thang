@@ -1,2 +1,2 @@
 [workspace]
-members = ["discord", "eludris", "models", "revolt-wrapper"]
+members = ["discord", "eludris", "models", "revolt-wrapper", "revolt"]

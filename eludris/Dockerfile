@@ -6,6 +6,7 @@ WORKDIR /eludris
 COPY eludris/Cargo.toml Cargo.lock ./
 COPY ./eludris/src ./src
 COPY ./models /models
+COPY ./revolt-wrapper /revolt-wrapper
 
 # Remove docker's default of removing cache after use.
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache

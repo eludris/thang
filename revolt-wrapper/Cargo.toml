@@ -7,10 +7,32 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.27"
-log = "0.4.17"
-reqwest = { version = "0.11.14", features = ["rustls-tls"] }
+optional_struct = "0.3.1"
+serde_with = "2.3.1"
 serde = { version = "1.0.156", features = ["derive"] }
-tokio = { version = "1.26.0", features = ["rt-multi-thread", "macros"] }
-tokio-tungstenite = { version = "0.18.0", features = [
+reqwest = { version = "0.11.14", default-features = false, optional = true, features = [
+    "rustls-tls",
+] }
+log = { version = "0.4.17", optional = true }
+rmp-serde = { version = "1.1.1", optional = true }
+tokio = { version = "1.26.0", optional = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "time",
+] }
+tokio-tungstenite = { version = "0.18.0", optional = true, features = [
     "rustls-tls-webpki-roots",
 ] }
+url = { version = "2.3.1", optional = true }
+
+[features]
+default = ["logic"]
+logic = [
+    "dep:tokio",
+    "dep:tokio-tungstenite",
+    "dep:log",
+    "dep:url",
+    "dep:reqwest",
+    "dep:rmp-serde",
+]

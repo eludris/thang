@@ -1,0 +1,16 @@
+[package]
+name = "revolt"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15.0"
+env = "0.0.0"
+env_logger = "0.10.0"
+futures = "0.3.27"
+log = "0.4.17"
+models = { version = "0.1.0", path = "../models" }
+revolt-wrapper = { version = "0.1.0", path = "../revolt-wrapper" }
+tokio = { version = "1.26.0", features = ["rt-multi-thread"] }

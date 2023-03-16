@@ -1,3 +1,4 @@
+use revolt_wrapper::models::Event as RevoltEvent;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use todel::models::Payload as EludrisEvent;
@@ -10,6 +11,7 @@ pub type ThangResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 pub enum Event {
     Eludris(EludrisEvent),
     Discord(DiscordEvent),
+    Revolt(RevoltEvent),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

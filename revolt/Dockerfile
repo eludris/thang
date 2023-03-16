@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1
 FROM rust:slim-bullseye as builder
 
-WORKDIR /discord
+WORKDIR /revolt
 
-COPY discord/Cargo.toml Cargo.lock ./
-COPY ./discord/src ./src
+COPY revolt/Cargo.toml Cargo.lock ./
+COPY ./revolt/src ./src
 COPY ./models /models
 COPY ./revolt-wrapper /revolt-wrapper
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/discord/target \
+    --mount=type=cache,target=/revolt/target \
     cargo build --release
 # Other image cannot access the target folder.
-RUN --mount=type=cache,target=/discord/target \
-    cp ./target/release/discord /usr/local/bin/discord
+RUN --mount=type=cache,target=/revolt/target \
+    cp ./target/release/revolt /usr/local/bin/revolt
 
 FROM debian:bullseye-slim
 
@@ -25,8 +25,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -yqq --no-install-recommends \
     $PACKAGES && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/bin/discord /bin/discord
+COPY --from=builder /usr/local/bin/revolt /bin/revolt
 
 ENV RUST_LOG debug
 
-CMD ["/bin/discord"]
+CMD ["/bin/revolt"]
