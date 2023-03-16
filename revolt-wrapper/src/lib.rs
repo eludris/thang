@@ -9,3 +9,5 @@ pub mod models;
 
 #[cfg(feature = "logic")]
 pub use gateway::GatewayClient;
+
+pub use models::Event;

@@ -20,5 +20,5 @@ pub enum Event {
     Authenticated,
     Bulk { v: Vec<Event> },
     Pong { data: u128 },
-    Message { message: Message },
+    Message(Message),
 }

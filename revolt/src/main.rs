@@ -1,8 +1,11 @@
-use std::env;
+use std::{
+    env,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use futures::StreamExt;
 use models::ThangResult;
-use revolt_wrapper::GatewayClient;
+use revolt_wrapper::{Event, GatewayClient};
 
 #[tokio::main]
 async fn main() -> ThangResult<()> {
@@ -18,7 +21,19 @@ async fn main() -> ThangResult<()> {
     log::info!("Connected to gateway!");
 
     while let Some(msg) = events.next().await {
-        println!("{:?}", msg);
+        match msg {
+            Event::Message(msg) => {
+                log::info!("Received message: {:?}", msg);
+            }
+            Event::Pong { data } => {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Time went backwards")
+                    .as_millis();
+                log::info!("Received pong! Latency is {}ms", now - data);
+            }
+            _ => {}
+        }
     }
 
     Ok(())
