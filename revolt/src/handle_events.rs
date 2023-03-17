@@ -9,6 +9,63 @@ use revolt_wrapper::gateway::Events;
 use revolt_wrapper::Event as GatewayEvent;
 use tokio::sync::Mutex;
 
+async fn handle_event(
+    event: GatewayEvent,
+    conn: Arc<Mutex<Connection>>,
+    channel_id: String,
+    bot_id: String,
+) -> Result<()> {
+    let payload = match event {
+        GatewayEvent::Message(msg) => {
+            if (msg.author == bot_id && msg.masquerade.is_some()) || msg.channel != channel_id {
+                return Ok(());
+            }
+
+            EventData::MessageCreate(Message {
+                content: msg.content.unwrap_or("".to_string()),
+                author: msg.author,
+                attachments: match msg.attachments {
+                    Some(attachments) => attachments
+                        .into_iter()
+                        .map(|a| a.url())
+                        .collect::<Vec<String>>(),
+                    None => Vec::new(),
+                },
+                // TODO: Requires caching messages waa.
+                replies: Vec::new(),
+            })
+        }
+        GatewayEvent::Pong { data } => {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_millis();
+            log::info!(
+                "Received pong! Latency is {}ms",
+                now - u128::from_be_bytes(data.try_into().unwrap())
+            );
+            return Ok(());
+        }
+        GatewayEvent::Ready {} => {
+            log::info!("Ready!");
+            return Ok(());
+        }
+        _ => return Ok(()),
+    };
+    let payload = Event {
+        platform: "revolt",
+        data: payload,
+    };
+
+    conn.lock()
+        .await
+        .publish::<&str, String, ()>("thang-bridge", serde_json::to_string(&payload).unwrap())
+        .await
+        .unwrap();
+
+    Ok(())
+}
+
 pub async fn handle_events(
     events: &mut Events,
     conn: Connection,
@@ -20,60 +77,7 @@ pub async fn handle_events(
         let conn = Arc::clone(&conn);
         let bot_id = bot_id.clone();
         let channel_id = channel_id.clone();
-        tokio::spawn(async move {
-            let payload = match event {
-                GatewayEvent::Message(msg) => {
-                    if (msg.author == bot_id && msg.masquerade.is_some())
-                        || msg.channel != channel_id
-                    {
-                        return;
-                    }
-
-                    EventData::MessageCreate(Message {
-                        content: msg.content.unwrap_or("".to_string()),
-                        author: msg.author,
-                        attachments: match msg.attachments {
-                            Some(attachments) => attachments
-                                .into_iter()
-                                .map(|a| a.url())
-                                .collect::<Vec<String>>(),
-                            None => Vec::new(),
-                        },
-                        // TODO: Requires caching messages waa.
-                        replies: Vec::new(),
-                    })
-                }
-                GatewayEvent::Pong { data } => {
-                    let now = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .expect("Time went backwards")
-                        .as_millis();
-                    log::info!(
-                        "Received pong! Latency is {}ms",
-                        now - u128::from_be_bytes(data.try_into().unwrap())
-                    );
-                    return;
-                }
-                GatewayEvent::Ready {} => {
-                    log::info!("Ready!");
-                    return;
-                }
-                _ => return,
-            };
-            let payload = Event {
-                platform: "revolt",
-                data: payload,
-            };
-
-            conn.lock()
-                .await
-                .publish::<&str, String, ()>(
-                    "thang-bridge",
-                    serde_json::to_string(&payload).unwrap(),
-                )
-                .await
-                .unwrap();
-        });
+        tokio::spawn(async move { handle_event(event, conn, channel_id, bot_id).await });
     }
 
     Ok(())
