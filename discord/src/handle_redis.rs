@@ -3,17 +3,17 @@ use std::time::Duration;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use models::Event;
-use models::ThangResult;
+use models::EventData;
+use models::Result;
 use redis::aio::Connection;
 use regex::Regex;
-use todel::models::Payload;
 use tokio::time;
 use twilight_http::{api_error::ApiError, error::ErrorType, Client};
 use twilight_mention::Mention;
 use twilight_model::channel::Webhook;
 use twilight_validate::{message::MESSAGE_CONTENT_LENGTH_MAX, request::webhook_username};
 
-pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> ThangResult<()> {
+pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> Result<()> {
     lazy_static! {
         static ref EMOJI_REGEX: Regex = Regex::new(r":(\w+):").unwrap();
     }
@@ -38,8 +38,13 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
                 continue;
             }
         };
-        match payload {
-            Event::Eludris(Payload::MessageCreate(msg)) => {
+
+        if payload.platform == "discord" {
+            continue;
+        }
+
+        match payload.data {
+            EventData::MessageCreate(msg) => {
                 let emojis = http
                     .emojis(webhook.guild_id.unwrap())
                     .await
@@ -93,9 +98,10 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> T
                     }
                 }
             }
-            Event::Discord(_) => {}
+            // Unreachable now but not for new events.
+            #[allow(unreachable_patterns)]
             payload => {
-                log::info!("Unhandled payload from pubsub: {:?}", payload)
+                log::warn!("Unhandled payload from pubsub: {:?}", payload)
             }
         }
     }

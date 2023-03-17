@@ -1,17 +1,20 @@
 use std::sync::Arc;
 
-use models::ThangResult;
-use models::{DiscordEvent, Event};
+use models::{Event, EventData, Message, Reply, Result};
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
 use twilight_gateway::{Event as GatewayEvent, Shard};
-use twilight_model::id::{marker::WebhookMarker, Id};
+use twilight_model::id::{
+    marker::{ChannelMarker, WebhookMarker},
+    Id,
+};
 
 pub async fn handle_events(
     shard: &mut Shard,
     conn: Connection,
     webhook_id: Id<WebhookMarker>,
-) -> ThangResult<()> {
+    channel_id: Id<ChannelMarker>,
+) -> Result<()> {
     let conn = Arc::new(Mutex::new(conn));
     loop {
         let event = match shard.next_event().await {
@@ -30,28 +33,34 @@ pub async fn handle_events(
         let conn = Arc::clone(&conn);
         tokio::spawn(async move {
             let payload = match event {
-                GatewayEvent::ChannelPinsUpdate(data) => {
-                    Event::Discord(DiscordEvent::ChannelPinsUpdate(data))
-                }
-                GatewayEvent::ChannelUpdate(data) => {
-                    Event::Discord(DiscordEvent::ChannelUpdate(data))
-                }
                 GatewayEvent::MessageCreate(data) => {
                     // Ignore webhook.
-                    if data.author.id.cast::<WebhookMarker>() == webhook_id {
+                    if data.author.id.cast::<WebhookMarker>() == webhook_id
+                        || data.channel_id != channel_id
+                    {
                         return;
                     }
 
-                    Event::Discord(DiscordEvent::MessageCreate(data))
-                }
-                GatewayEvent::MessageDelete(data) => {
-                    Event::Discord(DiscordEvent::MessageDelete(data))
-                }
-                GatewayEvent::MessageDeleteBulk(data) => {
-                    Event::Discord(DiscordEvent::MessageDeleteBulk(data))
-                }
-                GatewayEvent::MessageUpdate(data) => {
-                    Event::Discord(DiscordEvent::MessageUpdate(data))
+                    Event {
+                        platform: "discord",
+                        data: EventData::MessageCreate(Message {
+                            content: data.content.clone(),
+                            author: data.author.name.clone(),
+                            attachments: data
+                                .attachments
+                                .clone()
+                                .into_iter()
+                                .map(|a| a.url)
+                                .collect(),
+                            replies: match &data.referenced_message {
+                                Some(msg) => vec![Reply {
+                                    content: msg.content.clone(),
+                                    author: msg.author.name.clone(),
+                                }],
+                                None => Vec::new(),
+                            },
+                        }),
+                    }
                 }
                 _ => return,
             };

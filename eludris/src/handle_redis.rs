@@ -1,13 +1,10 @@
-// May seem unreachable now, but not when more items are added.
-#![allow(unreachable_patterns)]
 use eludrs::HttpClient;
 use futures::StreamExt;
-use models::DiscordEvent;
 use models::Event;
-use models::ThangResult;
+use models::EventData;
+use models::Result;
 use redis::aio::Connection;
 use serde::{Deserialize, Serialize};
-use twilight_model::id::{marker::ChannelMarker, Id};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RatelimitResponse {
@@ -19,11 +16,7 @@ struct RatelimitData {
     retry_after: u64,
 }
 
-pub async fn handle_redis(
-    redis: Connection,
-    rest: HttpClient,
-    discord_bridge_channel_id: Id<ChannelMarker>,
-) -> ThangResult<()> {
+pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
     let mut pubsub = redis.into_pubsub();
 
     pubsub.subscribe("thang-bridge").await?;
@@ -45,37 +38,29 @@ pub async fn handle_redis(
                 continue;
             }
         };
-        match payload {
-            Event::Discord(DiscordEvent::MessageCreate(msg)) => {
-                if msg.channel_id != discord_bridge_channel_id {
-                    continue;
-                }
 
-                let username = &msg.author.name;
-                let name = match msg.member.as_ref() {
-                    Some(member) => member.nick.as_ref().unwrap_or(username),
-                    None => username,
-                };
-                let mut name = format!("Bridge-{}", name);
+        if payload.platform == "eludris" {
+            continue;
+        }
+
+        match payload.data {
+            EventData::MessageCreate(msg) => {
+                let mut name = format!("Bridge-{}", &msg.author);
                 if name.len() > 32 {
                     name = name.drain(..32).collect();
                 }
 
                 let mut content = msg.content.clone();
 
-                if let Some(referenced) = &msg.referenced_message {
+                if !msg.replies.is_empty() {
+                    let referenced = &msg.replies[0];
                     let mut reply = referenced
                         .content
                         .lines()
                         .map(|l| format!("> {}", l))
                         .collect::<Vec<String>>()
                         .join("\n");
-                    let username = &referenced.author.name;
-                    let mut name = match referenced.member.as_ref() {
-                        Some(member) => member.nick.as_ref().unwrap_or(username),
-                        None => username,
-                    }
-                    .clone();
+                    let mut name = referenced.author.clone();
                     if name.len() > 32 {
                         name = name.drain(..32).collect();
                     }
@@ -86,7 +71,7 @@ pub async fn handle_redis(
                 let attachments = msg
                     .attachments
                     .iter()
-                    .map(|a| a.url.as_ref())
+                    .map(|a| a.as_ref())
                     .collect::<Vec<&str>>()
                     .join("\n");
 
@@ -96,13 +81,13 @@ pub async fn handle_redis(
                     }
                     content.push_str(&attachments);
                 }
+
                 rest.send_message(name, &content).await?;
             }
-            // Eludris does not have anything other than message create.
-            Event::Discord(_) => {}
-            Event::Eludris(_) => {}
+            // Seems unreachable now but is a catchall for future events.
+            #[allow(unreachable_patterns)]
             payload => {
-                log::info!("Unhandled payload from pubsub: {:?}", payload)
+                log::warn!("Unhandled payload from pubsub: {:?}", payload)
             }
         }
     }

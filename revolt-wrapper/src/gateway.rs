@@ -10,11 +10,12 @@ use futures::{
     stream::{SplitSink, SplitStream},
     SinkExt, Stream, StreamExt,
 };
+use models::Result;
 use tokio::{net::TcpStream, sync::Mutex, task::JoinHandle, time};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
-use crate::models::{Event, ThreadResult};
+use crate::models::Event;
 
 type WsReceiver = SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>;
 type WsSender = SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>;
@@ -28,6 +29,7 @@ pub struct Events {
     token: String,
     rx: Arc<Mutex<Option<WsReceiver>>>,
     ping: Arc<Mutex<Option<JoinHandle<()>>>>,
+    queue: Arc<Mutex<Vec<Event>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +56,7 @@ impl GatewayClient {
         self
     }
 
-    pub async fn get_events(&self) -> ThreadResult<Events> {
+    pub async fn get_events(&self) -> Result<Events> {
         let mut events = Events::new(self.gateway_url.to_string(), self.token.to_string());
         events.connect().await?;
         Ok(events)
@@ -108,10 +110,11 @@ impl Events {
             token,
             rx: Arc::new(Mutex::new(None)),
             ping: Arc::new(Mutex::new(None)),
+            queue: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    async fn connect(&mut self) -> ThreadResult<()> {
+    async fn connect(&mut self) -> Result<()> {
         log::debug!("Events connecting");
         let mut ping = self.ping.lock().await;
 
@@ -186,9 +189,19 @@ impl Stream for Events {
                 continue;
             }
 
+            let mut queue = futures::executor::block_on(async { self.queue.lock().await });
+            if !queue.is_empty() {
+                return Poll::Ready(Some(queue.remove(0)));
+            }
+
             match rx.as_mut().unwrap().poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(msg))) => match msg {
                     Message::Binary(msg) => match rmp_serde::from_slice(msg.as_slice()) {
+                        // Dispatch Bulk events individually, storing them in a temp "queue".
+                        Ok(Event::Bulk { v }) => {
+                            queue.extend(v);
+                            return Poll::Ready(Some(queue.remove(0)));
+                        }
                         Ok(event) => return Poll::Ready(Some(event)),
                         Err(rmp_serde::decode::Error::Syntax(msg)) => {
                             if !msg.starts_with("unknown variant") {

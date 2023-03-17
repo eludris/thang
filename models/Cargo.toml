@@ -6,7 +6,4 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-revolt-wrapper = { version = "0.1.0", path = "../revolt-wrapper", default-features = false}
 serde = { version = "1.0.147", features = ["derive"] }
-todel = { git = "https://github.com/eludris/todel", version = "0.3.0" }
-twilight-model = "0.15.1"

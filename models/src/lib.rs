@@ -1,26 +1,31 @@
-use revolt_wrapper::models::Event as RevoltEvent;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use todel::models::Payload as EludrisEvent;
-use twilight_model::gateway::payload::incoming::*;
+use std::result::Result as StdResult;
 
-pub type ThangResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+pub type Result<T> = StdResult<T, Box<dyn Error + Send + Sync>>;
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "platform")]
-pub enum Event {
-    Eludris(EludrisEvent),
-    Discord(DiscordEvent),
-    Revolt(RevoltEvent),
+pub struct Event<'a> {
+    pub platform: &'a str,
+    pub data: EventData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "t", content = "d")]
-pub enum DiscordEvent {
-    ChannelPinsUpdate(ChannelPinsUpdate),
-    ChannelUpdate(Box<ChannelUpdate>),
-    MessageCreate(Box<MessageCreate>),
-    MessageDelete(MessageDelete),
-    MessageDeleteBulk(MessageDeleteBulk),
-    MessageUpdate(Box<MessageUpdate>),
+#[serde(tag = "t")]
+pub enum EventData {
+    MessageCreate(Message),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Message {
+    pub content: String,
+    pub author: String,
+    pub attachments: Vec<String>,
+    pub replies: Vec<Reply>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Reply {
+    pub content: String,
+    pub author: String,
 }

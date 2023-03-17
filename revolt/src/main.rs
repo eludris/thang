@@ -1,43 +1,46 @@
-use std::{
-    env,
-    time::{SystemTime, UNIX_EPOCH},
-};
+mod handle_events;
+mod handle_redis;
 
-use futures::StreamExt;
-use models::ThangResult;
-use revolt_wrapper::{Event, GatewayClient};
+use std::env;
+
+use models::Result;
+use revolt_wrapper::{GatewayClient, HttpClient};
+
+const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
 
 #[tokio::main]
-async fn main() -> ThangResult<()> {
+async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
+    let channel_id = env::var("REVOLT_CHANNEL_ID").expect("REVOLT_CHANNEL_ID must be set");
+
     let token = env::var("REVOLT_TOKEN").expect("REVOLT_TOKEN must be set");
 
-    let client = GatewayClient::new(token);
+    let client = GatewayClient::new(token.clone());
+    let http = HttpClient::new(token);
 
     let mut events = client.get_events().await?;
 
     log::info!("Connected to gateway!");
 
-    while let Some(msg) = events.next().await {
-        match msg {
-            Event::Message(msg) => {
-                log::info!("Received message: {:?}", msg);
-            }
-            Event::Pong { data } => {
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Time went backwards")
-                    .as_millis();
-                log::info!(
-                    "Received pong! Latency is {}ms",
-                    now - u128::from_be_bytes(data.try_into().unwrap())
-                );
-            }
-            _ => {}
-        }
-    }
+    let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
 
-    Ok(())
+    let redis = redis::Client::open(redis_url)?;
+    log::info!("Connected to Redis {}", redis.get_connection_info().addr);
+
+    let bot_id = http.fetch_self().await?.id;
+
+    let err = tokio::select! {
+        e = handle_redis::handle_redis(redis.get_async_connection().await?, http, channel_id.clone()) => {
+            log::error!("Events failed first {:?}", e);
+            e
+        },
+        e = handle_events::handle_events(&mut events, redis.get_async_connection().await?, channel_id, bot_id) => {
+            log::error!("Websocket failed first {:?}", e);
+            e
+        },
+    };
+
+    err
 }

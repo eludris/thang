@@ -2,27 +2,17 @@ mod handle_redis;
 mod handle_websocket;
 
 use eludrs::{GatewayClient, HttpClient};
-use models::ThangResult;
+use models::Result;
 use std::env;
-use twilight_model::id::{marker::ChannelMarker, Id};
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
 const DEFAULT_REST_URL: &str = "https://api.eludris.gay";
 const DEFAULT_GATEWAY_URL: &str = "wss://ws.eludris.gay/";
 
 #[tokio::main]
-async fn main() -> ThangResult<()> {
+async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
-
-    // FIXME: Temporary single channel bridge until eludris channels.
-    let discord_bridge_channel_id = serde_json::from_str::<Id<ChannelMarker>>(
-        &env::var("DISCORD_CHANNEL_ID")
-            .expect("Could not find the \"DISCORD_CHANNEL_ID\" environment variable"),
-    )
-    .expect(
-        "Could not deserialize the \"DISCORD_CHANNEL_ID\" environment variable as a valid Discord ID",
-    );
 
     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
 
@@ -37,7 +27,7 @@ async fn main() -> ThangResult<()> {
     let gateway = GatewayClient::new().gateway_url(gateway_url);
 
     let err = tokio::select! {
-        e = handle_redis::handle_redis(redis.get_async_connection().await?, rest, discord_bridge_channel_id) => {
+        e = handle_redis::handle_redis(redis.get_async_connection().await?, rest) => {
             log::error!("Events failed first {:?}", e);
             e
         },

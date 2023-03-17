@@ -6,7 +6,6 @@ WORKDIR /discord
 COPY discord/Cargo.toml Cargo.lock ./
 COPY ./discord/src ./src
 COPY ./models /models
-COPY ./revolt-wrapper /revolt-wrapper
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/discord/target \
