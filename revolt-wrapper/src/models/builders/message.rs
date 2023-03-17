@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::models::File;
 
 #[derive(Debug, Serialize)]
+#[must_use = "Send message requests must be sent to be executed"]
 pub struct SendMessage<'a> {
     #[serde(skip)]
     http: &'a HttpClient,

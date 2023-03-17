@@ -54,8 +54,8 @@ pub async fn handle_events(
                     );
                     return;
                 }
-                GatewayEvent::Ready { users, members } => {
-                    log::info!("Ready! {:?} users, {:?} members", users, members);
+                GatewayEvent::Ready {} => {
+                    log::info!("Ready!");
                     return;
                 }
                 _ => return,

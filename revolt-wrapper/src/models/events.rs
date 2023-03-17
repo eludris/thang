@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Member, Message, User};
+use super::{MemberClear, MemberCompositeKey, Message, PartialMember, PartialUser, UserClear};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ErrorType {
@@ -23,5 +23,13 @@ pub enum Event {
     Bulk { v: Vec<Event> },
     Pong { data: Vec<u8> },
     Message(Message),
-    Ready { users: Vec<User>, members: Vec<Member> },
+    Ready { },
+    ServerMemberUpdate {
+        id: MemberCompositeKey,
+        data: PartialMember,
+        clear: Vec<MemberClear>,
+    },
+    ServerMemberLeave { id: String, user: String },
+    ServerDelete { id: String },
+    UserUpdate { id: String, data: PartialUser, clear: Vec<UserClear> },
 }

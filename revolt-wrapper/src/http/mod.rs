@@ -1,4 +1,4 @@
-use crate::models::{SendMessage, User};
+use crate::models::{Member, SendMessage, User};
 use models::Result;
 use reqwest::Client;
 
@@ -31,6 +31,18 @@ impl HttpClient {
 
     pub async fn fetch_self(&self) -> Result<User> {
         let url = format!("{}/users/@me", self.rest_url);
+        Ok(self
+            .client
+            .get(&url)
+            .header("x-bot-token", &self.token)
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
+
+    pub async fn fetch_member(&self, target: &str, member: &str) -> Result<Member> {
+        let url = format!("{}/servers/{}/members/{}", self.rest_url, target, member);
         Ok(self
             .client
             .get(&url)

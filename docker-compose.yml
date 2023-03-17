@@ -46,3 +46,6 @@ services:
   keydb:
     <<: *restart_policy
     image: eqalpha/keydb
+    volumes:
+      - ./keydb:/data
+      - ./keydb.conf:/etc/keydb/keydb.conf

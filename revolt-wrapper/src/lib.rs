@@ -1,7 +1,5 @@
-// #[macro_use]
-// extern crate optional_struct;
-// #[macro_use]
-// extern crate serde_with;
+#[macro_use]
+extern crate optional_struct;
 
 pub mod gateway;
 pub mod http;
