@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
-use eludrs::todel::Payload;
 use eludrs::GatewayClient;
 use futures::StreamExt;
 use models::Event;
-use models::ThangResult;
+use models::EventData;
+use models::Message;
+use models::Result;
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
 
-pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> ThangResult<()> {
+const ELUDRIS_AVATAR: &str =
+    "https://raw.githubusercontent.com/eludris/.github/main/assets/das_ding.png";
+
+pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> Result<()> {
     let redis = Arc::new(Mutex::new(redis));
     let mut events = gateway.get_events().await?;
 
@@ -16,7 +20,17 @@ pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> Than
         let redis = Arc::clone(&redis);
         tokio::spawn(async move {
             if !msg.author.starts_with("Bridge-") {
-                let event = Event::Eludris(Payload::MessageCreate(msg));
+                let event = Event {
+                    platform: "eludris",
+                    data: EventData::MessageCreate(Message {
+                        content: msg.content,
+                        author: msg.author,
+                        attachments: Vec::new(),
+                        replies: Vec::new(),
+                        // :(
+                        avatar: Some(ELUDRIS_AVATAR.to_string()),
+                    }),
+                };
                 redis
                     .lock()
                     .await

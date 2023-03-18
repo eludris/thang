@@ -1,7 +1,7 @@
 mod handle_events;
 mod handle_redis;
 
-use models::ThangResult;
+use models::Result;
 use std::env;
 use twilight_gateway::{CloseFrame, Intents, Shard, ShardId};
 use twilight_http::Client;
@@ -14,7 +14,7 @@ const WEBHOOK_NAME: &str = "Eludris Bridge";
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
 
 #[tokio::main]
-async fn main() -> ThangResult<()> {
+async fn main() -> Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
@@ -70,13 +70,18 @@ async fn main() -> ThangResult<()> {
     log::info!("Found webhook {:?}", webhook.id.to_string());
 
     let err = tokio::select!(
-        e  = handle_events::handle_events(&mut shard, redis.get_async_connection().await?, webhook.id) => {
+        e  = handle_events::handle_events(
+            &mut shard,
+            redis.get_async_connection().await?,
+            webhook.id,
+            bridge_channel_id,
+        ) => {
             log::error!("Events failed first {:?}", e);
-        e
+            e
         },
         e = handle_redis::handle_redis(redis.get_async_connection().await?, http, webhook) => {
             log::error!("Receive failed first {:?}", e);
-        e
+            e
         },
     );
 

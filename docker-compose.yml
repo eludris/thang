@@ -16,8 +16,8 @@ services:
     environment:
       # ...oh wait
       REDIS_URL: redis://keydb:6379
-      DISCORD_TOKEN: ${DISCORD_TOKEN}
-      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
+      DISCORD_TOKEN: $DISCORD_TOKEN
+      DISCORD_CHANNEL_ID: $DISCORD_CHANNEL_ID
       DISCORD_WEBHOOK_NAME: ${DISCORD_WEBHOOK_NAME:-Eludris Bridge}
   eludris:
     <<: *restart_policy
@@ -29,9 +29,20 @@ services:
     links: [ keydb ]
     environment:
       REDIS_URL: redis://keydb:6379
-      DISCORD_CHANNEL_ID: ${DISCORD_CHANNEL_ID}
       ELUDRIS_REST_URL: ${ELUDRIS_REST_URL:-https://api.eludris.gay}
       ELUDRIS_GATEWAY_URL: ${ELUDRIS_GATEWAY_URL:-wss://ws.eludris.gay/}
+  revolt:
+    <<: *restart_policy
+    build:
+      context: .
+      dockerfile: revolt/Dockerfile
+    pull_policy: build
+    depends_on: [ keydb ]
+    links: [ keydb ]
+    environment:
+      REDIS_URL: redis://keydb:6379
+      REVOLT_TOKEN: $REVOLT_TOKEN
+      REVOLT_CHANNEL_ID: $REVOLT_CHANNEL_ID
   keydb:
     <<: *restart_policy
     image: eqalpha/keydb
