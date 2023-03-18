@@ -1,7 +1,7 @@
 mod handle_events;
 mod handle_redis;
 
-use std::env;
+use std::{env, sync::Arc};
 
 use models::Result;
 use revolt_wrapper::{GatewayClient, HttpClient};
@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     let token = env::var("REVOLT_TOKEN").expect("REVOLT_TOKEN must be set");
 
     let client = GatewayClient::new(token.clone());
-    let http = HttpClient::new(token);
+    let http = Arc::new(HttpClient::new(token));
 
     let mut events = client.get_events().await?;
 
@@ -32,11 +32,11 @@ async fn main() -> Result<()> {
     let bot_id = http.fetch_self().await?.id;
 
     let err = tokio::select! {
-        e = handle_redis::handle_redis(redis.get_async_connection().await?, http, channel_id.clone()) => {
+        e = handle_redis::handle_redis(redis.get_async_connection().await?, http.clone(), channel_id.clone()) => {
             log::error!("Events failed first {:?}", e);
             e
         },
-        e = handle_events::handle_events(&mut events, redis.get_async_connection().await?, channel_id, bot_id) => {
+        e = handle_events::handle_events(&mut events, redis.get_async_connection().await?, channel_id, bot_id, http) => {
             log::error!("Websocket failed first {:?}", e);
             e
         },

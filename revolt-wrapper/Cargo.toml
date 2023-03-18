@@ -27,3 +27,5 @@ tokio-tungstenite = { version = "0.18.0", features = [
 serde_json = "1.0.94"
 models = { version = "0.1.0", path = "../models" }
 optional_struct = { git = "https://github.com/insertish/OptionalStruct", rev = "ee56427cee1f007839825d93d07fffd5a5e038c7" }
+redis-derive = "0.1.7"
+redis = "0.22.3"

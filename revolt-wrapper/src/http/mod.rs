@@ -52,4 +52,16 @@ impl HttpClient {
             .json()
             .await?)
     }
+
+    pub async fn fetch_user(&self, target: &str) -> Result<User> {
+        let url = format!("{}/users/{}", self.rest_url, target);
+        Ok(self
+            .client
+            .get(&url)
+            .header("x-bot-token", &self.token)
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
 }

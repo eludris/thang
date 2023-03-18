@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::StreamExt;
 use models::Event;
 use models::EventData;
@@ -6,7 +8,7 @@ use redis::aio::Connection;
 use revolt_wrapper::models::Masquerade;
 use revolt_wrapper::HttpClient;
 
-pub async fn handle_redis(redis: Connection, rest: HttpClient, channel: String) -> Result<()> {
+pub async fn handle_redis(redis: Connection, rest: Arc<HttpClient>, channel: String) -> Result<()> {
     let mut pubsub = redis.into_pubsub();
 
     pubsub.subscribe("thang-bridge").await?;
