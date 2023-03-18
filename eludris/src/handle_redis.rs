@@ -82,6 +82,12 @@ pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
                     content.push_str(&attachments);
                 }
 
+                // Since attachments cause a message to be empty.
+                // This should be fine for now, but shouldn't happen in the
+                if content.is_empty() {
+                    continue;
+                }
+
                 rest.send_message(name, &content).await?;
             }
             // Seems unreachable now but is a catchall for future events.
