@@ -76,6 +76,11 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> R
                         .execute_webhook(webhook.id, token)
                         .content(&content)
                         .unwrap();
+
+                    if let Some(avatar) = &msg.avatar {
+                        req = req.avatar_url(avatar);
+                    }
+
                     if webhook_username(&msg.author).is_ok() {
                         req = req.username(&msg.author).unwrap();
                     }

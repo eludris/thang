@@ -6,7 +6,7 @@ use models::{Event, Message};
 use models::{EventData, Result};
 use redis::{aio::Connection, AsyncCommands};
 use revolt_wrapper::gateway::Events;
-use revolt_wrapper::models::{Channel, Member, MemberClear, User};
+use revolt_wrapper::models::{Channel, Member, MemberClear, User, UserClear};
 use revolt_wrapper::{Event as GatewayEvent, HttpClient};
 use tokio::sync::Mutex;
 
@@ -102,6 +102,22 @@ async fn get_name(
     })
 }
 
+async fn get_avatar(
+    channel: &str,
+    user: &str,
+    http: &HttpClient,
+    conn: &Mutex<Connection>,
+) -> Result<Option<String>> {
+    let server = get_server_id(channel, http, conn).await?;
+    let member = get_member(&server, user, http, conn).await?;
+    let user = get_user(user, http, conn).await?;
+
+    Ok(match member.avatar {
+        Some(avatar) => Some(avatar.url()),
+        None => user.avatar.map(|a| a.url()),
+    })
+}
+
 async fn handle_event(
     event: GatewayEvent,
     conn: Arc<Mutex<Connection>>,
@@ -127,6 +143,7 @@ async fn handle_event(
                 },
                 // TODO: Requires caching messages waa.
                 replies: Vec::new(),
+                avatar: get_avatar(&msg.channel, &msg.author, &http, &conn).await?,
             })
         }
         GatewayEvent::Pong { data } => {
@@ -158,6 +175,7 @@ async fn handle_event(
                     // clear struct fields into None
                     match field {
                         MemberClear::Nickname => member.nickname = None,
+                        MemberClear::Avatar => member.avatar = None,
                     }
                 });
 
@@ -173,12 +191,20 @@ async fn handle_event(
 
             return Ok(());
         }
-        GatewayEvent::UserUpdate { id, data, .. } => {
+        GatewayEvent::UserUpdate { id, data, clear } => {
             let mut conn = conn.lock().await;
             let key = format!("users:{}", id);
 
             if let Some(mut user) = conn.get::<&str, Option<User>>(&key).await? {
                 user.apply_options(data);
+
+                clear.into_iter().for_each(|field| {
+                    // clear struct fields into None
+                    match field {
+                        UserClear::Avatar => user.avatar = None,
+                    }
+                });
+
                 conn.set::<&str, User, ()>(&key, user).await?;
             }
 

@@ -1,30 +1,12 @@
 use redis::{FromRedisValue, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 
+use super::File;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 pub struct MemberCompositeKey {
     pub server: String,
     pub user: String,
-}
-
-impl ToRedisArgs for MemberCompositeKey {
-    fn write_redis_args<W>(&self, out: &mut W)
-    where
-        W: ?Sized + redis::RedisWrite,
-    {
-        let args = vec![self.server.clone(), self.user.clone()];
-        args.write_redis_args(out);
-    }
-}
-
-impl FromRedisValue for MemberCompositeKey {
-    fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
-        let args: Vec<String> = FromRedisValue::from_redis_value(v)?;
-        Ok(MemberCompositeKey {
-            server: args[0].clone(),
-            user: args[1].clone(),
-        })
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, OptionalStruct)]
@@ -36,6 +18,7 @@ pub struct Member {
     #[serde(rename = "_id")]
     pub id: MemberCompositeKey,
     pub nickname: Option<String>,
+    pub avatar: Option<File>,
 }
 
 impl ToRedisArgs for Member {
@@ -58,4 +41,5 @@ impl FromRedisValue for Member {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MemberClear {
     Nickname,
+    Avatar,
 }

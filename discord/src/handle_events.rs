@@ -9,6 +9,45 @@ use twilight_model::id::{
     Id,
 };
 
+fn get_user_avatar(msg: &twilight_model::channel::Message) -> String {
+    if let Some(avatar) = msg.author.avatar {
+        format!(
+            "https://cdn.discordapp.com/avatars/{}/{}.png",
+            msg.author.id, avatar
+        )
+    } else {
+        format!(
+            "https://cdn.discordapp.com/embed/avatars/{}.png",
+            msg.author.discriminator % 5
+        )
+    }
+}
+
+fn get_avatar(msg: &twilight_model::channel::Message) -> String {
+    match &msg.member {
+        Some(member) => match member.avatar {
+            Some(avatar) => format!(
+                "https://cdn.discordapp.com/guilds/{}/users/{}/avatars/{}.png",
+                msg.guild_id.unwrap(),
+                msg.author.id,
+                avatar
+            ),
+            None => get_user_avatar(msg),
+        },
+        None => get_user_avatar(msg),
+    }
+}
+
+fn get_name(msg: &twilight_model::channel::Message) -> String {
+    match &msg.member {
+        Some(member) => match &member.nick {
+            Some(nick) => nick.clone(),
+            None => msg.author.name.clone(),
+        },
+        None => msg.author.name.clone(),
+    }
+}
+
 pub async fn handle_events(
     shard: &mut Shard,
     conn: Connection,
@@ -45,7 +84,7 @@ pub async fn handle_events(
                         platform: "discord",
                         data: EventData::MessageCreate(Message {
                             content: data.content.clone(),
-                            author: data.author.name.clone(),
+                            author: get_name(&data),
                             attachments: data
                                 .attachments
                                 .clone()
@@ -59,6 +98,7 @@ pub async fn handle_events(
                                 }],
                                 None => Vec::new(),
                             },
+                            avatar: Some(get_avatar(&data)),
                         }),
                     }
                 }

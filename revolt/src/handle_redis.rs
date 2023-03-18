@@ -73,7 +73,7 @@ pub async fn handle_redis(redis: Connection, rest: Arc<HttpClient>, channel: Str
                     .content(content)
                     .masquerade(Masquerade {
                         name: Some(msg.author),
-                        avatar: None,
+                        avatar: msg.avatar,
                     })
                     .send()
                     .await?;

@@ -22,6 +22,7 @@ pub struct Message {
     pub author: String,
     pub attachments: Vec<String>,
     pub replies: Vec<Reply>,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

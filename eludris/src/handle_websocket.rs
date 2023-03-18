@@ -9,6 +9,9 @@ use models::Result;
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
 
+const ELUDRIS_AVATAR: &str =
+    "https://raw.githubusercontent.com/eludris/.github/main/assets/das_ding.png";
+
 pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> Result<()> {
     let redis = Arc::new(Mutex::new(redis));
     let mut events = gateway.get_events().await?;
@@ -24,6 +27,8 @@ pub async fn handle_websocket(redis: Connection, gateway: GatewayClient) -> Resu
                         author: msg.author,
                         attachments: Vec::new(),
                         replies: Vec::new(),
+                        // :(
+                        avatar: Some(ELUDRIS_AVATAR.to_string()),
                     }),
                 };
                 redis
