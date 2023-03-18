@@ -83,7 +83,7 @@ pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
                 }
 
                 // Since attachments cause a message to be empty.
-                // This should be fine for now, but shouldn't happen in the
+                // This should be fine for now, but shouldn't happen in the future.
                 if content.is_empty() {
                     continue;
                 }
