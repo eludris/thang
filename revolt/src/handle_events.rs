@@ -6,35 +6,100 @@ use models::{Event, Message};
 use models::{EventData, Result};
 use redis::{aio::Connection, AsyncCommands};
 use revolt_wrapper::gateway::Events;
-use revolt_wrapper::models::User;
+use revolt_wrapper::models::{Channel, Member, MemberClear, User};
 use revolt_wrapper::{Event as GatewayEvent, HttpClient};
 use tokio::sync::Mutex;
 
-// TODO: use cache, get channel for server id for nickname from member waa
-async fn get_name(author: &str, http: &HttpClient, conn: &Mutex<Connection>) -> Result<String> {
-    let user = match conn
-        .lock()
-        .await
-        .get::<String, Option<User>>(format!("users:{}", author))
+async fn get_server_id(
+    channel: &str,
+    http: &HttpClient,
+    conn: &Mutex<Connection>,
+) -> Result<String> {
+    let mut conn = conn.lock().await;
+
+    let channel = match conn.get(format!("textchannel:{}", channel)).await? {
+        Some(channel) => channel,
+        None => {
+            let channel_enum = http.fetch_channel(channel).await?;
+            let Channel::TextChannel(channel) = channel_enum;
+            conn.set(format!("textchannel:{}", channel.id), &channel)
+                .await?;
+            channel
+        }
+    };
+
+    log::debug!("Got channel {:?}", channel);
+
+    Ok(channel.server)
+}
+
+async fn get_member(
+    server: &str,
+    member: &str,
+    http: &HttpClient,
+    conn: &Mutex<Connection>,
+) -> Result<Member> {
+    let mut conn = conn.lock().await;
+
+    let member = match conn
+        .get(format!("server:{}:member:{}", server, member))
         .await?
     {
+        Some(member) => {
+            log::debug!("Got member from cache {:?}", member);
+            member
+        }
+        None => {
+            let member = http.fetch_member(server, member).await?;
+            conn.set(
+                format!("server:{}:member:{}", server, member.id.user),
+                &member,
+            )
+            .await?;
+
+            member
+        }
+    };
+
+    log::debug!("Got member {:?}", member);
+
+    Ok(member)
+}
+
+async fn get_user(user: &str, http: &HttpClient, conn: &Mutex<Connection>) -> Result<User> {
+    let mut conn = conn.lock().await;
+
+    let user = match conn.get(format!("user:{}", user)).await? {
         Some(user) => {
             log::debug!("Got user from cache {:?}", user);
             user
         }
         None => {
-            let user = http.fetch_user(author).await?;
-            let mut conn = conn.lock().await;
-            redis::cmd("HSET")
-                .arg(&format!("users:{}", author))
-                .arg(&user)
-                .query_async(&mut *conn)
-                .await?;
+            let user = http.fetch_user(user).await?;
+            conn.set(format!("user:{}", user.id), &user).await?;
             user
         }
     };
 
-    Ok(user.username)
+    log::debug!("Got user {:?}", user);
+
+    Ok(user)
+}
+
+async fn get_name(
+    channel: &str,
+    user: &str,
+    http: &HttpClient,
+    conn: &Mutex<Connection>,
+) -> Result<String> {
+    let server = get_server_id(channel, http, conn).await?;
+    let member = get_member(&server, user, http, conn).await?;
+    let user = get_user(user, http, conn).await?;
+
+    Ok(match member.nickname {
+        Some(nickname) => nickname,
+        None => user.username,
+    })
 }
 
 async fn handle_event(
@@ -52,7 +117,7 @@ async fn handle_event(
 
             EventData::MessageCreate(Message {
                 content: msg.content.unwrap_or("".to_string()),
-                author: get_name(&msg.author, &http, &conn).await?,
+                author: get_name(&msg.channel, &msg.author, &http, &conn).await?,
                 attachments: match msg.attachments {
                     Some(attachments) => attachments
                         .into_iter()
@@ -81,28 +146,22 @@ async fn handle_event(
         }
         GatewayEvent::ServerMemberUpdate { id, data, clear } => {
             let mut conn = conn.lock().await;
-            // To custom use `ToRedisArgs` instead of Vec[(K, V)]
-            let key = format!("servers:{}:members:{}", id.server, id.user);
+            let key = format!("server:{}:member:{}", id.server, id.user);
 
             // Only update if the key exists.
             // As otherwise, there would be a partial cache,
             // without any way to see if a key really doesnt exist or simply hasnt been cached yet.
-            if conn.exists::<&str, bool>(&key).await? {
-                redis::cmd("HSET")
-                    .arg(&key)
-                    .arg(&data)
-                    .query_async(&mut *conn)
-                    .await?;
+            if let Some(mut member) = conn.get::<&str, Option<Member>>(&key).await? {
+                member.apply_options(data);
 
-                // bool is used as a known type, it will always be `None` but I cannot provide a variant.
+                clear.into_iter().for_each(|field| {
+                    // clear struct fields into None
+                    match field {
+                        MemberClear::Nickname => member.nickname = None,
+                    }
+                });
 
-                let h = clear
-                    .into_iter()
-                    .map(|c| (format!("{:?}", c), None))
-                    .collect::<Vec<(String, Option<bool>)>>();
-
-                conn.hset_multiple::<&str, String, Option<bool>, ()>(&key, h.as_slice())
-                    .await?;
+                conn.set::<&str, Member, ()>(&key, member).await?;
             }
 
             return Ok(());
@@ -110,28 +169,17 @@ async fn handle_event(
         GatewayEvent::ServerMemberLeave { id, user } => {
             conn.lock()
                 .await
-                .del::<&str, ()>(format!("servers:{}:members:{}", id, user).as_str());
+                .del::<&str, ()>(format!("servers:{}:member:{}", id, user).as_str());
 
             return Ok(());
         }
-        GatewayEvent::UserUpdate { id, data, clear } => {
+        GatewayEvent::UserUpdate { id, data, .. } => {
             let mut conn = conn.lock().await;
             let key = format!("users:{}", id);
 
-            if conn.exists::<&str, bool>(&key).await? {
-                redis::cmd("HSET")
-                    .arg(&key)
-                    .arg(&data)
-                    .query_async(&mut *conn)
-                    .await?;
-
-                let h = clear
-                    .into_iter()
-                    .map(|c| (format!("{:?}", c), None))
-                    .collect::<Vec<(String, Option<bool>)>>();
-
-                conn.hset_multiple::<&str, String, Option<bool>, ()>(&key, h.as_slice())
-                    .await?;
+            if let Some(mut user) = conn.get::<&str, Option<User>>(&key).await? {
+                user.apply_options(data);
+                conn.set::<&str, User, ()>(&key, user).await?;
             }
 
             return Ok(());
@@ -165,7 +213,11 @@ pub async fn handle_events(
         let bot_id = bot_id.clone();
         let channel_id = channel_id.clone();
         let http = Arc::clone(&http);
-        tokio::spawn(async move { handle_event(event, conn, channel_id, bot_id, http).await });
+        tokio::spawn(async move {
+            if let Err(err) = handle_event(event, conn, channel_id, bot_id, http).await {
+                log::error!("Error handling event: {}", err);
+            }
+        });
     }
 
     Ok(())

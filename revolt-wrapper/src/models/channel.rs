@@ -1,18 +1,20 @@
 use redis::{FromRedisValue, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, OptionalStruct)]
-#[optional_derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[optional_name = "PartialUser"]
-#[opt_some_priority]
-#[opt_skip_serializing_none]
-pub struct User {
-    #[serde(rename = "_id")]
-    pub id: String,
-    pub username: String,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "channel_type")]
+pub enum Channel {
+    TextChannel(TextChannel),
 }
 
-impl ToRedisArgs for User {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TextChannel {
+    #[serde(rename = "_id")]
+    pub id: String,
+    pub server: String,
+}
+
+impl ToRedisArgs for TextChannel {
     fn write_redis_args<W>(&self, out: &mut W)
     where
         W: ?Sized + redis::RedisWrite,
@@ -22,7 +24,7 @@ impl ToRedisArgs for User {
     }
 }
 
-impl FromRedisValue for User {
+impl FromRedisValue for TextChannel {
     fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
         let args: String = FromRedisValue::from_redis_value(v)?;
         Ok(serde_json::from_str(&args).unwrap())

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{MemberClear, MemberCompositeKey, Message, PartialMember, PartialUser, UserClear};
+use super::{MemberClear, MemberCompositeKey, Message, PartialMember, PartialUser};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ErrorType {
@@ -31,5 +31,5 @@ pub enum Event {
     },
     ServerMemberLeave { id: String, user: String },
     ServerDelete { id: String },
-    UserUpdate { id: String, data: PartialUser, clear: Vec<UserClear> },
+    UserUpdate { id: String, data: PartialUser },
 }

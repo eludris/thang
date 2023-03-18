@@ -322,7 +322,7 @@ dependencies = [
  "lazy_static",
  "log",
  "models",
- "redis 0.22.3",
+ "redis",
  "regex",
  "serde",
  "serde_json",
@@ -355,7 +355,7 @@ dependencies = [
  "futures-util",
  "log",
  "models",
- "redis 0.22.3",
+ "redis",
  "serde",
  "serde_json",
  "tokio",
@@ -586,12 +586,6 @@ name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-
-[[package]]
-name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hermit-abi"
@@ -1024,21 +1018,6 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "152f3863635cbb76b73bc247845781098302c6c9ad2060e1a9a7de56840346b6"
-dependencies = [
- "async-trait",
- "combine",
- "itoa",
- "percent-encoding",
- "ryu",
- "sha1 0.6.1",
- "url",
-]
-
-[[package]]
-name = "redis"
 version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa8455fa3621f6b41c514946de66ea0531f57ca017b2e6c7cc368035ea5b46df"
@@ -1055,18 +1034,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "url",
-]
-
-[[package]]
-name = "redis-derive"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd54aa405add884ec36f7eb40d6d09d5be4ea6b69655492dd5764bc7d698ef12"
-dependencies = [
- "heck",
- "quote 1.0.21",
- "redis 0.21.7",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1135,7 +1102,7 @@ dependencies = [
  "futures",
  "log",
  "models",
- "redis 0.22.3",
+ "redis",
  "revolt-wrapper",
  "serde_json",
  "tokio",
@@ -1149,8 +1116,7 @@ dependencies = [
  "log",
  "models",
  "optional_struct",
- "redis 0.22.3",
- "redis-derive",
+ "redis",
  "reqwest",
  "rmp-serde",
  "serde",
@@ -1400,15 +1366,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
-]
-
-[[package]]
-name = "sha1"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1da05c97445caa12d05e848c4a4fcbbea29e748ac28f7e80e9b010392063770"
-dependencies = [
- "sha1_smol",
 ]
 
 [[package]]
@@ -1748,7 +1705,7 @@ dependencies = [
  "log",
  "rand",
  "rustls",
- "sha1 0.10.5",
+ "sha1",
  "thiserror",
  "url",
  "utf-8",
