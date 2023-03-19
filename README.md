@@ -1,6 +1,6 @@
 # Thang
 
-Official Eludris Discord bot for managing stuff ~~and inside jokes~~
+Official Eludris extensible multi-way platform bridge.
 
 ## Running
 
