@@ -72,6 +72,9 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> R
                 };
                 loop {
                     let token = webhook.token.as_ref().unwrap();
+                    if content.is_empty() {
+                        break;
+                    }
                     let mut req = match http.execute_webhook(webhook.id, token).content(&content) {
                         Ok(req) => req,
                         Err(err) => {
@@ -101,6 +104,9 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> R
                                     ratelimit.retry_after
                                 );
                                 time::sleep(Duration::from_secs_f64(ratelimit.retry_after)).await;
+                            } else {
+                                log::error!("Failed to execute webhook: {}", err);
+                                break;
                             }
                         }
                     }
