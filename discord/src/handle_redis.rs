@@ -72,10 +72,13 @@ pub async fn handle_redis(conn: Connection, http: Client, webhook: Webhook) -> R
                 };
                 loop {
                     let token = webhook.token.as_ref().unwrap();
-                    let mut req = http
-                        .execute_webhook(webhook.id, token)
-                        .content(&content)
-                        .unwrap();
+                    let mut req = match http.execute_webhook(webhook.id, token).content(&content) {
+                        Ok(req) => req,
+                        Err(err) => {
+                            log::error!("Failed to create webhook request: {}", err);
+                            break;
+                        }
+                    };
 
                     if let Some(avatar) = &msg.avatar {
                         req = req.avatar_url(avatar);
