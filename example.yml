@@ -1,0 +1,5 @@
+- name: wawa
+  discord: [123, 456]
+  eludris: [https://one.tld, https://two.tld]
+  revolt: [abc-xyz, def-uvw]
+- ...
