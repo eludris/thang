@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:slim-bullseye as builder
+FROM rust:slim-bullseye as revolt-builder
 
 WORKDIR /revolt
 
@@ -25,6 +25,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -yqq --no-install-recommends \
     $PACKAGES && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/bin/revolt /bin/revolt
+COPY --from=revolt-builder /usr/local/bin/revolt /bin/revolt
 
 CMD ["/bin/revolt"]

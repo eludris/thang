@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:slim-bullseye as builder
+FROM rust:slim-bullseye as eludris-builder
 
 WORKDIR /eludris
 
@@ -24,6 +24,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -yqq --no-install-recommends \
     $PACKAGES && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/bin/eludris /bin/eludris
+COPY --from=eludris-builder /usr/local/bin/eludris /bin/eludris
 
 CMD ["/bin/eludris"]
