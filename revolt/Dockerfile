@@ -27,6 +27,4 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 COPY --from=builder /usr/local/bin/revolt /bin/revolt
 
-ENV RUST_LOG debug
-
 CMD ["/bin/revolt"]

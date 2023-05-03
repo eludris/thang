@@ -26,6 +26,4 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 COPY --from=builder /usr/local/bin/discord /bin/discord
 
-ENV RUST_LOG debug
-
 CMD ["/bin/discord"]

@@ -4,45 +4,43 @@ x-restart-policy:
   &restart_policy
   restart: unless-stopped
 
+x-service:
+  &service
+  <<: *restart_policy
+  depends_on: [ keydb ]
+  links: [ keydb ]
+  pull_policy: build
+  volumes:
+    - ./config.yml:/config.yml
+
 services:
   discord:
-    <<: *restart_policy
+    <<: *service
     build:
       context: .
       dockerfile: discord/Dockerfile
-    pull_policy: build
-    depends_on: [ keydb ]
-    links: [ keydb ]
     environment:
       # ...oh wait
       REDIS_URL: redis://keydb:6379
       DISCORD_TOKEN: $DISCORD_TOKEN
-      DISCORD_CHANNEL_ID: $DISCORD_CHANNEL_ID
-      DISCORD_WEBHOOK_NAME: ${DISCORD_WEBHOOK_NAME:-Eludris Bridge}
+      RUST_LOG: ${RUST_LOG:-INFO}
   eludris:
-    <<: *restart_policy
+    <<: *service
     build:
       context: .
       dockerfile: eludris/Dockerfile
-    pull_policy: build
-    depends_on: [ keydb ]
-    links: [ keydb ]
     environment:
       REDIS_URL: redis://keydb:6379
-      ELUDRIS_REST_URL: ${ELUDRIS_REST_URL:-https://api.eludris.gay}
-      ELUDRIS_GATEWAY_URL: ${ELUDRIS_GATEWAY_URL:-wss://ws.eludris.gay/}
-  # revolt:
-  #   <<: *restart_policy
-  #   build:
-  #     context: .
-  #     dockerfile: revolt/Dockerfile
-  #   pull_policy: build
-  #   depends_on: [ keydb ]
-  #   links: [ keydb ]
-  #   environment:
-  #     REDIS_URL: redis://keydb:6379
-  #     REVOLT_TOKEN: $REVOLT_TOKEN
-  #     REVOLT_CHANNEL_ID: $REVOLT_CHANNEL_ID
+      RUST_LOG: ${RUST_LOG:-INFO}
+  revolt:
+    <<: *service
+    build:
+      context: .
+      dockerfile: revolt/Dockerfile
+    environment:
+      REDIS_URL: redis://keydb:6379
+      REVOLT_TOKEN: $REVOLT_TOKEN
+      RUST_LOG: ${RUST_LOG:-INFO}
   keydb:
     <<: *restart_policy
     image: eqalpha/keydb

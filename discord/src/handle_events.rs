@@ -4,10 +4,6 @@ use models::{Event, EventData, Message, Reply, Result};
 use redis::{aio::Connection, AsyncCommands};
 use tokio::sync::Mutex;
 use twilight_gateway::{Event as GatewayEvent, Shard};
-use twilight_model::id::{
-    marker::{ChannelMarker, WebhookMarker},
-    Id,
-};
 
 fn get_user_avatar(msg: &twilight_model::channel::Message) -> String {
     if let Some(avatar) = msg.author.avatar {
@@ -48,12 +44,7 @@ fn get_name(msg: &twilight_model::channel::Message) -> String {
     }
 }
 
-pub async fn handle_events(
-    shard: &mut Shard,
-    conn: Connection,
-    webhook_id: Id<WebhookMarker>,
-    channel_id: Id<ChannelMarker>,
-) -> Result<()> {
+pub async fn handle_events(shard: &mut Shard, conn: Connection) -> Result<()> {
     let conn = Arc::new(Mutex::new(conn));
     loop {
         let event = match shard.next_event().await {
@@ -62,7 +53,7 @@ pub async fn handle_events(
                 log::warn!("error receiving event");
 
                 if source.is_fatal() {
-                    break;
+                    return Err(source.into());
                 }
 
                 continue;
@@ -71,49 +62,60 @@ pub async fn handle_events(
 
         let conn = Arc::clone(&conn);
         tokio::spawn(async move {
-            let payload = match event {
+            let (payload, channel_id) = match event {
                 GatewayEvent::MessageCreate(data) => {
                     // Ignore webhook.
-                    if data.author.id.cast::<WebhookMarker>() == webhook_id
-                        || data.channel_id != channel_id
-                    {
+                    if data.author.discriminator == 0 {
                         return;
                     }
 
-                    Event {
-                        platform: "discord",
-                        data: EventData::MessageCreate(Message {
-                            content: data.content.clone(),
-                            author: get_name(&data),
-                            attachments: data
-                                .attachments
-                                .clone()
-                                .into_iter()
-                                .map(|a| a.url)
-                                .collect(),
-                            replies: match &data.referenced_message {
-                                Some(msg) => vec![Reply {
-                                    content: msg.content.clone(),
-                                    author: msg.author.name.clone(),
-                                }],
-                                None => Vec::new(),
-                            },
-                            avatar: Some(get_avatar(&data)),
-                        }),
-                    }
+                    (
+                        Event {
+                            platform: "discord",
+                            identifier: data.channel_id.to_string(),
+                            data: EventData::MessageCreate(Message {
+                                content: data.content.clone(),
+                                author: get_name(&data),
+                                attachments: data
+                                    .attachments
+                                    .clone()
+                                    .into_iter()
+                                    .map(|a| a.url)
+                                    .collect(),
+                                replies: match &data.referenced_message {
+                                    Some(msg) => vec![Reply {
+                                        content: msg.content.clone(),
+                                        author: msg.author.name.clone(),
+                                    }],
+                                    None => Vec::new(),
+                                },
+                                avatar: Some(get_avatar(&data)),
+                            }),
+                        },
+                        data.channel_id,
+                    )
                 }
                 _ => return,
             };
-            conn.lock()
-                .await
-                .publish::<&str, String, ()>(
-                    "thang-bridge",
-                    serde_json::to_string(&payload).unwrap(),
-                )
+
+            let mut conn: tokio::sync::MutexGuard<Connection> = conn.lock().await;
+            let channel_name = conn
+                .get::<String, Option<String>>(format!("discord:key:{}", channel_id))
                 .await
                 .unwrap();
+            match channel_name {
+                Some(channel_name) => {
+                    conn.publish::<&str, String, ()>(
+                        &channel_name,
+                        serde_json::to_string(&payload).unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                }
+                None => {
+                    log::debug!("Ignoring channel {}", channel_id);
+                }
+            }
         });
     }
-
-    Ok(())
 }

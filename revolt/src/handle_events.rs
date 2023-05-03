@@ -121,30 +121,36 @@ async fn get_avatar(
 async fn handle_event(
     event: GatewayEvent,
     conn: Arc<Mutex<Connection>>,
-    channel_id: String,
     bot_id: String,
     http: Arc<HttpClient>,
 ) -> Result<()> {
-    let payload = match event {
+    let (payload, channel_id) = match event {
         GatewayEvent::Message(msg) => {
-            if (msg.author == bot_id && msg.masquerade.is_some()) || msg.channel != channel_id {
+            if msg.author == bot_id && msg.masquerade.is_some() {
                 return Ok(());
             }
 
-            EventData::MessageCreate(Message {
-                content: msg.content.unwrap_or("".to_string()),
-                author: get_name(&msg.channel, &msg.author, &http, &conn).await?,
-                attachments: match msg.attachments {
-                    Some(attachments) => attachments
-                        .into_iter()
-                        .map(|a| a.url())
-                        .collect::<Vec<String>>(),
-                    None => Vec::new(),
+            (
+                Event {
+                    platform: "revolt",
+                    identifier: msg.channel.clone(),
+                    data: EventData::MessageCreate(Message {
+                        content: msg.content.unwrap_or("".to_string()),
+                        author: get_name(&msg.channel, &msg.author, &http, &conn).await?,
+                        attachments: match msg.attachments {
+                            Some(attachments) => attachments
+                                .into_iter()
+                                .map(|a| a.url())
+                                .collect::<Vec<String>>(),
+                            None => Vec::new(),
+                        },
+                        // TODO: Requires caching messages waa.
+                        replies: Vec::new(),
+                        avatar: get_avatar(&msg.channel, &msg.author, &http, &conn).await?,
+                    }),
                 },
-                // TODO: Requires caching messages waa.
-                replies: Vec::new(),
-                avatar: get_avatar(&msg.channel, &msg.author, &http, &conn).await?,
-            })
+                msg.channel,
+            )
         }
         GatewayEvent::Pong { data } => {
             let now = SystemTime::now()
@@ -212,16 +218,25 @@ async fn handle_event(
         }
         _ => return Ok(()),
     };
-    let payload = Event {
-        platform: "revolt",
-        data: payload,
-    };
 
-    conn.lock()
-        .await
-        .publish::<&str, String, ()>("thang-bridge", serde_json::to_string(&payload).unwrap())
+    let mut conn: tokio::sync::MutexGuard<Connection> = conn.lock().await;
+    let channel_name = conn
+        .get::<String, Option<String>>(format!("revolt:key:{}", channel_id))
         .await
         .unwrap();
+    match channel_name {
+        Some(channel_name) => {
+            conn.publish::<&str, String, ()>(
+                &channel_name,
+                serde_json::to_string(&payload).unwrap(),
+            )
+            .await
+            .unwrap();
+        }
+        None => {
+            log::debug!("Ignoring message from unknown channel {}", channel_id);
+        }
+    }
 
     Ok(())
 }
@@ -229,7 +244,6 @@ async fn handle_event(
 pub async fn handle_events(
     events: &mut Events,
     conn: Connection,
-    channel_id: String,
     bot_id: String,
     http: Arc<HttpClient>,
 ) -> Result<()> {
@@ -237,10 +251,9 @@ pub async fn handle_events(
     while let Some(event) = events.next().await {
         let conn = Arc::clone(&conn);
         let bot_id = bot_id.clone();
-        let channel_id = channel_id.clone();
         let http = Arc::clone(&http);
         tokio::spawn(async move {
-            if let Err(err) = handle_event(event, conn, channel_id, bot_id, http).await {
+            if let Err(err) = handle_event(event, conn, bot_id, http).await {
                 log::error!("Error handling event: {}", err);
             }
         });
