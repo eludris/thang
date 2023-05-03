@@ -15,4 +15,5 @@ models = { version = "0.1.0", path = "../models" }
 redis = { version = "0.22.3", features = ["tokio-comp"] }
 revolt-wrapper = { version = "0.1.0", path = "../revolt-wrapper" }
 serde_json = "1.0.94"
+serde_yaml = "0.9.21"
 tokio = { version = "1.26.0", features = ["rt-multi-thread"] }

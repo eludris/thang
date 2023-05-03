@@ -1,10 +1,16 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use eludrs::HttpClient;
 use futures::StreamExt;
+use models::Config;
 use models::Event;
 use models::EventData;
 use models::Result;
 use redis::aio::Connection;
+use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RatelimitResponse {
@@ -16,13 +22,24 @@ struct RatelimitData {
     retry_after: u64,
 }
 
-pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
-    let mut pubsub = redis.into_pubsub();
+pub async fn handle_redis(
+    conn_pub: Connection,
+    conn: Connection,
+    clients: HashMap<String, HttpClient>,
+    config: Config,
+) -> Result<()> {
+    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(conn));
+    let mut pubsub = conn_pub.into_pubsub();
 
-    pubsub.subscribe("thang-bridge").await?;
+    for channel in config {
+        if channel.eludris.is_some() {
+            pubsub.subscribe(channel.name).await?;
+        }
+    }
     let mut pubsub = pubsub.into_on_message();
 
     while let Some(payload) = pubsub.next().await {
+        let channel_name = payload.get_channel_name();
         // TODO: handle more of the errors here
         let payload: String = match payload.get_payload() {
             Ok(payload) => payload,
@@ -39,9 +56,23 @@ pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
             }
         };
 
-        if payload.platform == "eludris" {
+        let mut conn = conn.lock().await;
+        let urls = conn
+            .smembers::<_, Option<Vec<String>>>(format!("eludris:instances:{}", channel_name))
+            .await?;
+        let required_clients = if let Some(urls) = urls {
+            let mut required_clients = Vec::new();
+            for url in urls {
+                if payload.platform == "eludris" && url == payload.identifier {
+                    continue;
+                }
+                required_clients.push(clients.get(&url).unwrap());
+            }
+            required_clients
+        } else {
+            log::warn!("No instance URL found for channel {}", channel_name);
             continue;
-        }
+        };
 
         match payload.data {
             EventData::MessageCreate(msg) => {
@@ -88,7 +119,10 @@ pub async fn handle_redis(redis: Connection, rest: HttpClient) -> Result<()> {
                     continue;
                 }
 
-                rest.send_message(name, &content).await?;
+                log::debug!("Sending message to {} clients", required_clients.len());
+                for client in required_clients {
+                    client.send_message(&name, &content).await?;
+                }
             }
             // Seems unreachable now but is a catchall for future events.
             #[allow(unreachable_patterns)]

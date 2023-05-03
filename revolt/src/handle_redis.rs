@@ -1,20 +1,35 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
+use models::Config;
 use models::Event;
 use models::EventData;
 use models::Result;
 use redis::aio::Connection;
+use redis::AsyncCommands;
 use revolt_wrapper::models::Masquerade;
 use revolt_wrapper::HttpClient;
+use tokio::sync::Mutex;
 
-pub async fn handle_redis(redis: Connection, rest: Arc<HttpClient>, channel: String) -> Result<()> {
-    let mut pubsub = redis.into_pubsub();
+pub async fn handle_redis(
+    conn_pub: Connection,
+    conn: Connection,
+    rest: Arc<HttpClient>,
+    config: Config,
+) -> Result<()> {
+    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(conn));
+    let mut pubsub = conn_pub.into_pubsub();
 
-    pubsub.subscribe("thang-bridge").await?;
+    for channel in config {
+        if channel.revolt.is_some() {
+            pubsub.subscribe(channel.name).await?;
+        }
+    }
+
     let mut pubsub = pubsub.into_on_message();
 
     while let Some(payload) = pubsub.next().await {
+        let channel_name = payload.get_channel_name();
         // TODO: handle more of the errors here
         let payload: String = match payload.get_payload() {
             Ok(payload) => payload,
@@ -31,9 +46,25 @@ pub async fn handle_redis(redis: Connection, rest: Arc<HttpClient>, channel: Str
             }
         };
 
-        if payload.platform == "revolt" {
+        let mut conn = conn.lock().await;
+        let channel_ids = conn
+            .smembers::<_, Option<Vec<String>>>(format!("revolt:channels:{}", channel_name))
+            .await?;
+
+        let channel_ids: Vec<String> = if let Some(channel_ids) = channel_ids {
+            if payload.platform == "revolt" {
+                let current_id: String = payload.identifier;
+                channel_ids
+                    .into_iter()
+                    .filter(|id| id != &current_id)
+                    .collect()
+            } else {
+                channel_ids
+            }
+        } else {
+            log::warn!("No channel id found for channel {}", channel_name);
             continue;
-        }
+        };
 
         match payload.data {
             EventData::MessageCreate(msg) => {
@@ -69,14 +100,16 @@ pub async fn handle_redis(redis: Connection, rest: Arc<HttpClient>, channel: Str
                 //     content.push_str(&attachments);
                 // }
 
-                rest.send_message(&channel)
-                    .content(content)
-                    .masquerade(Masquerade {
-                        name: Some(msg.author),
-                        avatar: msg.avatar,
-                    })
-                    .send()
-                    .await?;
+                for channel in channel_ids {
+                    rest.send_message(&channel)
+                        .content(content.clone())
+                        .masquerade(Masquerade {
+                            name: Some(msg.author.clone()),
+                            avatar: msg.avatar.clone(),
+                        })
+                        .send()
+                        .await?;
+                }
             }
             // Seems unreachable now but is a catchall for future events.
             #[allow(unreachable_patterns)]

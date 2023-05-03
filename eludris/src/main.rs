@@ -1,13 +1,14 @@
+mod handle_events;
 mod handle_redis;
-mod handle_websocket;
 
 use eludrs::{GatewayClient, HttpClient};
-use models::Result;
-use std::env;
+use futures::future::{abortable, select_all};
+use futures_util::FutureExt;
+use models::{Config, Result};
+use redis::AsyncCommands;
+use std::{collections::HashMap, env};
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
-const DEFAULT_REST_URL: &str = "https://api.eludris.gay";
-const DEFAULT_GATEWAY_URL: &str = "wss://ws.eludris.gay/";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,27 +16,84 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
+    let config: Config = serde_yaml::from_str(&std::fs::read_to_string("/config.yml")?)?;
 
     let redis = redis::Client::open(redis_url)?;
     log::info!("Connected to Redis {}", redis.get_connection_info().addr);
 
-    let rest_url = env::var("ELUDRIS_REST_URL").unwrap_or_else(|_| DEFAULT_REST_URL.to_string());
-    let gateway_url =
-        env::var("ELUDRIS_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.to_string());
+    let mut conn = redis.get_async_connection().await?;
+    for channel in &config {
+        if let Some(eludris) = &channel.eludris {
+            for url in eludris {
+                conn.set(format!("eludris:key:{}", url), &channel.name)
+                    .await?;
+            }
+            conn.sadd(format!("eludris:instances:{}", channel.name), eludris)
+                .await?;
+        }
+    }
 
-    let rest = HttpClient::new().rest_url(rest_url);
-    let gateway = GatewayClient::new().gateway_url(gateway_url);
+    let mut clients: HashMap<String, HttpClient> = HashMap::new();
+    let mut gateway: HashMap<String, GatewayClient> = HashMap::new();
 
-    let err = tokio::select! {
-        e = handle_redis::handle_redis(redis.get_async_connection().await?, rest) => {
-            log::error!("Events failed first {:?}", e);
-            e
-        },
-        e = handle_websocket::handle_websocket(redis.get_async_connection().await?, gateway) => {
-            log::error!("Websocket failed first {:?}", e);
-            e
-        },
-    };
+    for url in config
+        .iter()
+        .filter_map(|config| config.eludris.as_ref())
+        .flatten()
+    {
+        if clients.contains_key(url) {
+            continue;
+        }
+        let url = url
+            .replace("localhost", "172.17.0.1")
+            .replace("127.0.0.1", "172.17.0.1");
+        let client = HttpClient::new().rest_url(url.to_string());
+        let gateway_url = client
+            .fetch_instance_info()
+            .await?
+            .pandemonium_url
+            .replace("localhost", "172.17.0.1");
 
-    err
+        clients.insert(url.to_string(), client);
+        gateway.insert(
+            url.to_string(),
+            GatewayClient::new().gateway_url(gateway_url),
+        );
+    }
+
+    let mut futures = Vec::new();
+
+    futures.push(
+        handle_redis::handle_redis(
+            redis.get_async_connection().await?,
+            redis.get_async_connection().await?,
+            clients,
+            config,
+        )
+        .boxed(),
+    );
+
+    for (url, gw) in gateway {
+        futures.push(
+            handle_events::handle_events(redis.get_async_connection().await?, gw, url).boxed(),
+        );
+    }
+
+    let (output, index, futures) = select_all(futures).await;
+
+    if index == 0 {
+        log::error!("Redis failed first: {:?}", output);
+    } else {
+        log::error!("Events failed first: {:?}", output);
+    }
+
+    for future in futures {
+        let (res, abort_handle) = abortable(future.map(Result::Ok));
+        tokio::spawn(async move {
+            let _ = res.await;
+        });
+        abort_handle.abort();
+    }
+
+    output
 }
