@@ -65,7 +65,7 @@ pub async fn handle_events(shard: &mut Shard, conn: Connection) -> Result<()> {
             let (payload, channel_id) = match event {
                 GatewayEvent::MessageCreate(data) => {
                     // Ignore webhook.
-                    if data.author.discriminator == 0 {
+                    if data.webhook_id.is_some() {
                         return;
                     }
 
