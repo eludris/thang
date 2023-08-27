@@ -25,5 +25,5 @@ twilight-validate = "0.15.1"
 regex = "1.7.0"
 lazy_static = "1.4.0"
 twilight-mention = "0.15.1"
-todel = { git = "https://github.com/eludris/eludris", version = "0.3.2" }
+todel = "0.3.3"
 serde_yaml = "0.9.21"

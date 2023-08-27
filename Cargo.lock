@@ -327,7 +327,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "todel",
+ "todel 0.3.3",
  "tokio",
  "twilight",
  "twilight-gateway",
@@ -374,7 +374,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "todel",
+ "todel 0.3.2",
  "tokio",
  "tokio-tungstenite 0.17.2",
 ]
@@ -1554,6 +1554,30 @@ dependencies = [
  "serde_with",
  "ubyte",
  "url",
+]
+
+[[package]]
+name = "todel"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a61005650ae24a28c604692e379d06ccc0a3fbb71ea5e31bb2f8524e1dab26c"
+dependencies = [
+ "serde",
+ "todel_codegen",
+ "ubyte",
+ "url",
+]
+
+[[package]]
+name = "todel_codegen"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be078db3296c56265aa5f94ab949bf07898dcbba9bb9d10050feec85de2e5f8b"
+dependencies = [
+ "quote 1.0.26",
+ "serde",
+ "serde_json",
+ "syn 1.0.109",
 ]
 
 [[package]]
