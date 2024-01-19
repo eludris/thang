@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     let token = env::var("REVOLT_TOKEN").expect("REVOLT_TOKEN must be set");
     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
 
-    let config: Config = serde_yaml::from_str(&std::fs::read_to_string("/config.yml")?)?;
+    let config: Config = serde_yaml::from_str(&std::fs::read_to_string("./config.yml")?)?;
 
     let client = GatewayClient::new(token.clone());
     let http = Arc::new(HttpClient::new(token));
