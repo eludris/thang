@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     let redis = redis::Client::open(redis_url)?;
     log::info!("Connected to Redis {}", redis.get_connection_info().addr);
 
-    let mut conn = redis.get_async_connection().await?;
+    let mut conn = redis.get_multiplexed_async_connection().await?;
     for channel in &config {
         if let Some(eludris) = &channel.eludris {
             for url in eludris {
@@ -65,8 +65,8 @@ async fn main() -> Result<()> {
 
     futures.push(
         handle_redis::handle_redis(
-            redis.get_async_connection().await?,
-            redis.get_async_connection().await?,
+            redis.get_async_pubsub().await?,
+            redis.get_multiplexed_async_connection().await?,
             clients,
             config,
         )
@@ -75,7 +75,8 @@ async fn main() -> Result<()> {
 
     for (url, gw) in gateway {
         futures.push(
-            handle_events::handle_events(redis.get_async_connection().await?, gw, url).boxed(),
+            handle_events::handle_events(redis.get_multiplexed_async_connection().await?, gw, url)
+                .boxed(),
         );
     }
 

@@ -6,13 +6,18 @@ use models::Event;
 use models::EventData;
 use models::Message;
 use models::Result;
-use redis::{aio::Connection, AsyncCommands};
+use redis::aio::MultiplexedConnection;
+use redis::AsyncCommands;
 use tokio::sync::Mutex;
 
 const ELUDRIS_AVATAR: &str =
     "https://raw.githubusercontent.com/eludris/.github/main/assets/das_ding.png";
 
-pub async fn handle_events(conn: Connection, gateway: GatewayClient, url: String) -> Result<()> {
+pub async fn handle_events(
+    conn: MultiplexedConnection,
+    gateway: GatewayClient,
+    url: String,
+) -> Result<()> {
     let conn = Arc::new(Mutex::new(conn));
     let mut events = gateway.get_events().await?;
 
@@ -34,7 +39,7 @@ pub async fn handle_events(conn: Connection, gateway: GatewayClient, url: String
                     }),
                 };
 
-                let mut conn: tokio::sync::MutexGuard<Connection> = conn.lock().await;
+                let mut conn: tokio::sync::MutexGuard<MultiplexedConnection> = conn.lock().await;
                 let channel_name = conn
                     .get::<String, Option<String>>(format!("eludris:key:{}", url))
                     .await

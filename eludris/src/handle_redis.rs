@@ -7,7 +7,8 @@ use models::Config;
 use models::Event;
 use models::EventData;
 use models::Result;
-use redis::aio::Connection;
+use redis::aio::MultiplexedConnection;
+use redis::aio::PubSub;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -23,13 +24,12 @@ struct RatelimitData {
 }
 
 pub async fn handle_redis(
-    conn_pub: Connection,
-    conn: Connection,
+    pubsub: PubSub,
+    conn: MultiplexedConnection,
     clients: HashMap<String, HttpClient>,
     config: Config,
 ) -> Result<()> {
-    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(conn));
-    let mut pubsub = conn_pub.into_pubsub();
+    let conn: Arc<Mutex<MultiplexedConnection>> = Arc::new(Mutex::new(conn));
 
     for channel in config {
         if channel.eludris.is_some() {
