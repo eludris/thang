@@ -5,20 +5,19 @@ use models::Config;
 use models::Event;
 use models::EventData;
 use models::Result;
-use redis::aio::Connection;
+use redis::aio::{MultiplexedConnection, PubSub};
 use redis::AsyncCommands;
 use revolt_wrapper::models::Masquerade;
 use revolt_wrapper::HttpClient;
 use tokio::sync::Mutex;
 
 pub async fn handle_redis(
-    conn_pub: Connection,
-    conn: Connection,
+    mut pubsub: PubSub,
+    conn: MultiplexedConnection,
     rest: Arc<HttpClient>,
     config: Config,
 ) -> Result<()> {
-    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(conn));
-    let mut pubsub = conn_pub.into_pubsub();
+    let conn: Arc<Mutex<MultiplexedConnection>> = Arc::new(Mutex::new(conn));
 
     for channel in config {
         if channel.revolt.is_some() {
