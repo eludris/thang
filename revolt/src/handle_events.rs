@@ -225,7 +225,7 @@ async fn handle_event(
         _ => return Ok(()),
     };
 
-    let mut conn: tokio::sync::MutexGuard<MultiplexedConnection> = conn.lock().await;
+    let mut conn = conn.lock().await;
     let channel_name = conn
         .get::<String, Option<String>>(format!("revolt:key:{}", channel_id))
         .await

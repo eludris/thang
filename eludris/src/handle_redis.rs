@@ -29,7 +29,7 @@ pub async fn handle_redis(
     clients: HashMap<String, HttpClient>,
     config: Config,
 ) -> Result<()> {
-    let conn: Arc<Mutex<MultiplexedConnection>> = Arc::new(Mutex::new(conn));
+    let conn = Arc::new(Mutex::new(conn));
 
     for channel in config {
         if channel.eludris.is_some() {
