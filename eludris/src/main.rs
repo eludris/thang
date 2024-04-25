@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let mut conn = redis.get_multiplexed_async_connection().await?;
     for channel in &config {
         if let Some(eludris) = &channel.eludris {
-            conn.set(format!("eludris:key:{}", URL), &channel.name)
+            conn.set(format!("eludris:key:{}", eludris), &channel.name)
                 .await?;
             conn.sadd(format!("eludris:instances:{}", channel.name), eludris)
                 .await?;
