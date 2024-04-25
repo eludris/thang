@@ -432,7 +432,7 @@ dependencies = [
 [[package]]
 name = "eludrs"
 version = "0.4.0-alpha1"
-source = "git+https://github.com/eludris-community/eludrs?branch=ooliver1/feat/v4-alpha1#924e6574155da49702f9b14ef43d85a60d46e078"
+source = "git+https://github.com/eludris-community/eludrs?branch=ooliver1/feat/v4-alpha1#445ea741439c85445033f0e7043cdce6b8cabda3"
 dependencies = [
  "anyhow",
  "futures",
