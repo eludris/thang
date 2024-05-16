@@ -71,8 +71,8 @@ pub async fn handle_redis(mut pubsub: PubSub, client: HttpClient, config: Config
                 let attachments = msg
                     .attachments
                     .iter()
-                    .map(|a| a.as_ref())
-                    .collect::<Vec<&str>>()
+                    .map(|a| format!("![]({})", a))
+                    .collect::<Vec<String>>()
                     .join("\n");
 
                 if !attachments.is_empty() {
