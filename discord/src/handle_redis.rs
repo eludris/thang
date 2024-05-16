@@ -200,6 +200,20 @@ pub async fn handle_redis(
                         };
                     }
 
+                    let attachments = msg
+                        .attachments
+                        .iter()
+                        .map(|a| a.as_ref())
+                        .collect::<Vec<&str>>()
+                        .join("\n");
+
+                    if !attachments.is_empty() {
+                        if !content.is_empty() {
+                            content.push('\n');
+                        }
+                        content.push_str(&attachments);
+                    }
+
                     let content = if content.len() > MESSAGE_CONTENT_LENGTH_MAX {
                         format!(
                             "{}... truncated message",
