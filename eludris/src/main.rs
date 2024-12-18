@@ -1,7 +1,7 @@
 mod handle_events;
 mod handle_redis;
 
-use eludrs::HttpClient;
+use eludrs::{GatewayClient, HttpClient};
 use futures::future::{abortable, select_all};
 use futures_util::FutureExt;
 use models::{Config, Result};
@@ -19,6 +19,8 @@ async fn main() -> Result<()> {
     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| DEFAULT_REDIS_URL.to_string());
     let config: Config = serde_yaml::from_str(&std::fs::read_to_string("./config.yml")?)?;
     let token: String = env::var("ELUDRIS_TOKEN").expect("ELUDRIS_TOKEN must be set");
+    let eludris_url = env::var("ELUDRIS_URL").unwrap_or_else(|_| URL.to_string());
+    let gateway_url = env::var("ELUDRIS_GATEWAY_URL").ok();
 
     let redis = redis::Client::open(redis_url)?;
     log::info!("Connected to Redis {}", redis.get_connection_info().addr);
@@ -39,9 +41,12 @@ async fn main() -> Result<()> {
         }
     }
 
-    let mut client = HttpClient::new(&token).rest_url(URL.to_string());
+    let mut client = HttpClient::new(&token).rest_url(eludris_url);
+    let gateway = match gateway_url {
+        Some(gateway_url) => GatewayClient::new(&token).gateway_url(gateway_url),
+        None => client.create_gateway().await?,
+    };
     let effis_url = client.get_instance_info().await?.effis_url.clone();
-    let gateway = client.create_gateway().await?;
     let self_id = client.get_user().await?.id;
 
     let mut futures = Vec::new();
