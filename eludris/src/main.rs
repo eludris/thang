@@ -6,10 +6,10 @@ use futures::future::{abortable, select_all};
 use futures_util::FutureExt;
 use models::{Config, Result};
 use redis::AsyncCommands;
-use std::env;
+use std::{env, num::NonZero};
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
-const URL: &str = "https://api.eludris.gay/next";
+const URL: &str = "https://api.eludris.gay/next/";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,16 +26,22 @@ async fn main() -> Result<()> {
     let mut conn = redis.get_multiplexed_async_connection().await?;
     for channel in &config {
         if let Some(eludris) = &channel.eludris {
-            conn.set(format!("eludris:key:{}", eludris), &channel.name)
-                .await?;
-            conn.sadd(format!("eludris:instances:{}", channel.name), eludris)
-                .await?;
+            for id in eludris {
+                conn.set::<'_, String, &String, ()>(format!("eludris:key:{}", id), &channel.name)
+                    .await?;
+            }
+
+            conn.sadd::<'_, String, &Vec<NonZero<u64>>, ()>(
+                format!("eludris:channels:{}", channel.name),
+                eludris,
+            )
+            .await?;
         }
     }
 
     let mut client = HttpClient::new(&token).rest_url(URL.to_string());
-    let gateway = client.create_gateway().await?;
     let effis_url = client.get_instance_info().await?.effis_url.clone();
+    let gateway = client.create_gateway().await?;
     let self_id = client.get_user().await?.id;
 
     let mut futures = Vec::new();
@@ -44,14 +50,20 @@ async fn main() -> Result<()> {
         handle_events::handle_events(
             redis.get_multiplexed_async_connection().await?,
             gateway,
-            config[0].eludris.as_ref().unwrap().to_string(),
             self_id,
             effis_url,
         )
         .boxed(),
     );
-    futures
-        .push(handle_redis::handle_redis(redis.get_async_pubsub().await?, client, config).boxed());
+    futures.push(
+        handle_redis::handle_redis(
+            redis.get_async_pubsub().await?,
+            redis.get_multiplexed_async_connection().await?,
+            client,
+            config,
+        )
+        .boxed(),
+    );
 
     let (output, index, futures) = select_all(futures).await;
 

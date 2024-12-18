@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use eludrs::todel::SphereChannel;
 use eludrs::GatewayClient;
 use futures::StreamExt;
 use models::Event;
@@ -16,7 +17,6 @@ const ELUDRIS_AVATAR: &str =
 pub async fn handle_events(
     conn: MultiplexedConnection,
     gateway: GatewayClient,
-    url: String,
     self_id: u64,
     effis_url: String,
 ) -> Result<()> {
@@ -25,7 +25,6 @@ pub async fn handle_events(
 
     while let Some(event) = events.next().await {
         let conn = Arc::clone(&conn);
-        let url = url.clone();
         let effis_url = effis_url.clone();
         tokio::spawn(async move {
             if let eludrs::models::Event::Message(msg) = event {
@@ -34,11 +33,15 @@ pub async fn handle_events(
                         Some(avatar) => format!("{effis_url}/avatars/{avatar}"),
                         None => ELUDRIS_AVATAR.to_string(),
                     };
+                    let channel_id = match msg.channel {
+                        SphereChannel::Text(c) => c.id,
+                        SphereChannel::Voice(c) => c.id,
+                    };
                     let event = Event {
                         platform: "eludris",
-                        identifier: url.clone(),
+                        identifier: channel_id.to_string(),
                         data: EventData::MessageCreate(Message {
-                            content: msg.message.content,
+                            content: msg.content.unwrap_or_default(),
                             author: msg.author.display_name.unwrap_or(msg.author.username),
                             attachments: Vec::new(),
                             replies: Vec::new(),
@@ -48,7 +51,7 @@ pub async fn handle_events(
 
                     let mut conn = conn.lock().await;
                     let channel_name = conn
-                        .get::<String, Option<String>>(format!("eludris:key:{}", url))
+                        .get::<String, Option<String>>(format!("eludris:key:{}", channel_id))
                         .await
                         .unwrap();
                     match channel_name {
@@ -60,7 +63,7 @@ pub async fn handle_events(
                             .await
                             .unwrap(),
                         None => {
-                            log::debug!("Ignoring channel {}", url);
+                            log::debug!("Ignoring channel {}", channel_id);
                         }
                     }
                 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use eludrs::todel::MessageDisguise;
 use eludrs::HttpClient;
 use futures::StreamExt;
@@ -5,8 +7,10 @@ use models::Config;
 use models::Event;
 use models::EventData;
 use models::Result;
-use redis::aio::PubSub;
+use redis::aio::{MultiplexedConnection, PubSub};
+use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct RatelimitResponse {
@@ -18,15 +22,23 @@ struct RatelimitData {
     retry_after: u64,
 }
 
-pub async fn handle_redis(mut pubsub: PubSub, client: HttpClient, config: Config) -> Result<()> {
+pub async fn handle_redis(
+    mut pubsub: PubSub,
+    conn: MultiplexedConnection,
+    client: HttpClient,
+    config: Config,
+) -> Result<()> {
+    let conn = Arc::new(Mutex::new(conn));
     for channel in config {
         if channel.eludris.is_some() {
             pubsub.subscribe(channel.name).await?;
         }
     }
+
     let mut pubsub = pubsub.into_on_message();
 
     while let Some(payload) = pubsub.next().await {
+        let channel_name = payload.get_channel_name();
         // TODO: handle more of the errors here
         let payload: String = match payload.get_payload() {
             Ok(payload) => payload,
@@ -43,10 +55,25 @@ pub async fn handle_redis(mut pubsub: PubSub, client: HttpClient, config: Config
             }
         };
 
-        if payload.platform == "eludris" {
-            // As only one url and channel can exist after refactor but before channels.
+        let mut conn = conn.lock().await;
+        let channel_ids = conn
+            .smembers::<_, Option<Vec<u64>>>(format!("eludris:channels:{}", channel_name))
+            .await?;
+
+        let channel_ids: Vec<u64> = if let Some(channel_ids) = channel_ids {
+            if payload.platform == "eludris" {
+                let current_id: u64 = payload.identifier.parse().unwrap();
+                channel_ids
+                    .into_iter()
+                    .filter(|id| id != &current_id)
+                    .collect()
+            } else {
+                channel_ids
+            }
+        } else {
+            log::warn!("No channel id found for channel {}", channel_name);
             continue;
-        }
+        };
 
         match payload.data {
             EventData::MessageCreate(msg) => {
@@ -88,15 +115,19 @@ pub async fn handle_redis(mut pubsub: PubSub, client: HttpClient, config: Config
                     continue;
                 }
 
-                client
-                    .send_message_with_disguise(
-                        &content,
-                        MessageDisguise {
-                            name: Some(msg.author.clone()),
-                            avatar: msg.avatar.clone(),
-                        },
-                    )
-                    .await?;
+                for channel in channel_ids {
+                    client
+                        .send_message_with_disguise(
+                            channel,
+                            &content,
+                            MessageDisguise {
+                                name: Some(msg.author.clone()),
+                                avatar: msg.avatar.clone(),
+                            },
+                            None,
+                        )
+                        .await?;
+                }
             }
             // Seems unreachable now but is a catchall for future events.
             #[allow(unreachable_patterns)]

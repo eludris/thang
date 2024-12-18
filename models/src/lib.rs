@@ -39,6 +39,6 @@ pub type Config = Vec<ChannelConfig>;
 pub struct ChannelConfig {
     pub name: String,
     pub discord: Option<Vec<NonZeroU64>>,
-    pub eludris: Option<String>,
+    pub eludris: Option<Vec<NonZeroU64>>,
     pub revolt: Option<Vec<String>>,
 }
