@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 dotenv = "0.15.0"
-eludrs = { git = "https://github.com/eludris-community/eludrs", version = "0.4.0-alpha1", branch = "ooliver1/feat/v4-alpha1" }
+eludrs = { git = "https://github.com/eludris-community/eludrs", version = "0.4.0-alpha1", branch = "ooliver1/feat/v4-alpha2" }
 env_logger = "0.11.3"
 futures = "0.3.25"
 futures-util = "0.3.25"

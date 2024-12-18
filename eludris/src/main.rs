@@ -9,7 +9,7 @@ use redis::AsyncCommands;
 use std::env;
 
 const DEFAULT_REDIS_URL: &str = "redis://127.0.0.1:6379";
-const URL: &str = "https://api.eludris.gay";
+const URL: &str = "https://api.eludris.gay/next";
 
 #[tokio::main]
 async fn main() -> Result<()> {
